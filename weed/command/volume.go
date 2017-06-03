@@ -35,7 +35,6 @@ type VolumeServerOptions struct {
 	whiteList             []string
 	indexType             *string
 	readRedirect          *bool
-	enableBytesCache      *bool
 }
 
 func init() {
@@ -53,7 +52,6 @@ func init() {
 	v.rack = cmdVolume.Flag.String("rack", "", "current volume server's rack name")
 	v.indexType = cmdVolume.Flag.String("index", "memory", "Choose [memory|leveldb|boltdb|btree] mode for memory~performance balance.")
 	v.readRedirect = cmdVolume.Flag.Bool("read.redirect", true, "Redirect moved or non-local volumes.")
-	v.enableBytesCache = cmdVolume.Flag.Bool("cache.enable", false, "direct cache instead of OS cache, cost more memory.")
 }
 
 var cmdVolume = &Command{
@@ -134,7 +132,6 @@ func runVolume(cmd *Command, args []string) bool {
 		*v.master, *v.pulseSeconds, *v.dataCenter, *v.rack,
 		v.whiteList,
 		*v.readRedirect,
-		*v.enableBytesCache,
 	)
 
 	listeningAddress := *v.bindIp + ":" + strconv.Itoa(*v.port)

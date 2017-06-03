@@ -216,7 +216,6 @@ func runServer(cmd *Command, args []string) bool {
 		volumeNeedleMapKind,
 		*serverIp+":"+strconv.Itoa(*masterPort), *volumePulse, *serverDataCenter, *serverRack,
 		serverWhiteList, *volumeReadRedirect,
-		*volumeEnableBytesCache,
 	)
 
 	glog.V(0).Infoln("Start Seaweed volume server", util.VERSION, "at", *serverIp+":"+strconv.Itoa(*volumePort))
