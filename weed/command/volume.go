@@ -35,6 +35,8 @@ type VolumeServerOptions struct {
 	whiteList             []string
 	indexType             *string
 	readRedirect          *bool
+	cpuProfile            *string
+	memProfile            *string
 }
 
 func init() {
@@ -52,6 +54,8 @@ func init() {
 	v.rack = cmdVolume.Flag.String("rack", "", "current volume server's rack name")
 	v.indexType = cmdVolume.Flag.String("index", "memory", "Choose [memory|leveldb|boltdb|btree] mode for memory~performance balance.")
 	v.readRedirect = cmdVolume.Flag.Bool("read.redirect", true, "Redirect moved or non-local volumes.")
+	v.cpuProfile = cmdVolume.Flag.String("cpuprofile", "", "cpu profile output file")
+	v.memProfile = cmdVolume.Flag.String("memprofile", "", "memory profile output file")
 }
 
 var cmdVolume = &Command{
@@ -73,6 +77,7 @@ func runVolume(cmd *Command, args []string) bool {
 		*v.maxCpu = runtime.NumCPU()
 	}
 	runtime.GOMAXPROCS(*v.maxCpu)
+	util.SetupProfiling(*v.cpuProfile, *v.memProfile)
 
 	//Set multiple folders and each folder's max volume count limit'
 	v.folders = strings.Split(*volumeFolders, ",")
@@ -154,7 +159,7 @@ func runVolume(cmd *Command, args []string) bool {
 		}()
 	}
 
-	OnInterrupt(func() {
+	util.OnInterrupt(func() {
 		volumeServer.Shutdown()
 	})
 

@@ -240,7 +240,7 @@ func runServer(cmd *Command, args []string) bool {
 		}()
 	}
 
-	OnInterrupt(func() {
+	util.OnInterrupt(func() {
 		volumeServer.Shutdown()
 		pprof.StopCPUProfile()
 	})
