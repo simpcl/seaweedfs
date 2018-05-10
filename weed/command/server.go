@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"weed/glog"
-	"weed/pb"
+	"weed/pb/master_pb"
 	weed_server "weed/server"
 	"weed/storage"
 	"weed/util"
@@ -176,7 +176,7 @@ func runServer(cmd *Command, args []string) bool {
 
 		// Create your protocol servers.
 		grpcS := grpc.NewServer()
-		pb.RegisterSeaweedServer(grpcS, ms)
+		master_pb.RegisterSeaweedServer(grpcS, ms)
 		reflection.Register(grpcS)
 
 		httpS := &http.Server{Handler: r}

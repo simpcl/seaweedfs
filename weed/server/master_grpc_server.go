@@ -5,14 +5,14 @@ import (
 	"strings"
 
 	"weed/glog"
-	"weed/pb"
+	"weed/pb/master_pb"
 	"weed/storage"
 	"weed/topology"
 
 	"google.golang.org/grpc/peer"
 )
 
-func (ms MasterServer) SendHeartbeat(stream pb.Seaweed_SendHeartbeatServer) error {
+func (ms MasterServer) SendHeartbeat(stream master_pb.Seaweed_SendHeartbeatServer) error {
 	var dn *topology.DataNode
 	t := ms.Topo
 	for {
@@ -35,7 +35,7 @@ func (ms MasterServer) SendHeartbeat(stream pb.Seaweed_SendHeartbeatServer) erro
 					int(heartbeat.Port), heartbeat.PublicUrl,
 					int(heartbeat.MaxVolumeCount))
 				glog.V(0).Infof("added volume server %v:%d", heartbeat.GetIp(), heartbeat.GetPort())
-				if err := stream.Send(&pb.HeartbeatResponse{
+				if err := stream.Send(&master_pb.HeartbeatResponse{
 					VolumeSizeLimit: uint64(ms.volumeSizeLimitMB) * 1024 * 1024,
 					SecretKey:       string(ms.guard.SecretKey),
 				}); err != nil {
@@ -70,7 +70,7 @@ func (ms MasterServer) SendHeartbeat(stream pb.Seaweed_SendHeartbeatServer) erro
 		// tell the volume servers about the leader
 		newLeader, err := t.Leader()
 		if err == nil {
-			if err := stream.Send(&pb.HeartbeatResponse{
+			if err := stream.Send(&master_pb.HeartbeatResponse{
 				Leader: newLeader,
 			}); err != nil {
 				return err

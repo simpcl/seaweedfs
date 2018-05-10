@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"weed/glog"
-	"weed/pb"
+	"weed/pb/master_pb"
 	"weed/security"
 	"weed/storage"
 
@@ -43,7 +43,7 @@ func (vs *VolumeServer) doHeartbeat(sleepInterval time.Duration) error {
 	}
 	defer grpcConection.Close()
 
-	client := pb.NewSeaweedClient(grpcConection)
+	client := master_pb.NewSeaweedClient(grpcConection)
 	stream, err := client.SendHeartbeat(context.Background())
 	if err != nil {
 		glog.V(0).Infof("%v.SendHeartbeat(_) = _, %v", client, err)
