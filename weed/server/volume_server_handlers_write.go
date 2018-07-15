@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
+	"time"
 
 	"weed/glog"
 	"weed/operation"
@@ -87,6 +89,14 @@ func (vs *VolumeServer) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		count = chunkManifest.Size
 	}
 
+	n.LastModified = uint64(time.Now().Unix())
+	if len(r.FormValue("ts")) > 0 {
+		modifiedTime, err := strconv.ParseInt(r.FormValue("ts"), 10, 64)
+		if err == nil {
+			n.LastModified = uint64(modifiedTime)
+		}
+	}
+
 	_, err := topology.ReplicatedDelete(vs.GetMaster(), vs.store, volumeId, n, r)
 
 	if err == nil {
@@ -103,6 +113,7 @@ func (vs *VolumeServer) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 func (vs *VolumeServer) batchDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	var ret []operation.DeleteResult
+	now := uint64(time.Now().Unix())
 	for _, fid := range r.Form["fid"] {
 		vid, id_cookie, err := operation.ParseFileId(fid)
 		if err != nil {
@@ -144,6 +155,7 @@ func (vs *VolumeServer) batchDeleteHandler(w http.ResponseWriter, r *http.Reques
 			glog.V(0).Infoln("deleting", fid, "with unmaching cookie from ", r.RemoteAddr, "agent", r.UserAgent())
 			return
 		}
+		n.LastModified = now
 		if size, err := vs.store.Delete(volumeId, n); err != nil {
 			ret = append(ret, operation.DeleteResult{
 				Fid:    fid,
