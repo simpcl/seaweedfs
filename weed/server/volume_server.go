@@ -19,9 +19,8 @@ type VolumeServer struct {
 	guard        *security.Guard
 	masterNodes  *storage.MasterNodes
 
-	needleMapKind     storage.NeedleMapType
-	FixJpgOrientation bool
-	ReadRedirect      bool
+	needleMapKind storage.NeedleMapType
+	ReadRedirect  bool
 }
 
 func NewVolumeServer(adminMux, publicMux *http.ServeMux, ip string,
@@ -31,16 +30,14 @@ func NewVolumeServer(adminMux, publicMux *http.ServeMux, ip string,
 	masterNode string, pulseSeconds int,
 	dataCenter string, rack string,
 	whiteList []string,
-	fixJpgOrientation bool,
 	readRedirect bool,
 	enableBytesCache bool) *VolumeServer {
 	vs := &VolumeServer{
-		pulseSeconds:      pulseSeconds,
-		dataCenter:        dataCenter,
-		rack:              rack,
-		needleMapKind:     needleMapKind,
-		FixJpgOrientation: fixJpgOrientation,
-		ReadRedirect:      readRedirect,
+		pulseSeconds:  pulseSeconds,
+		dataCenter:    dataCenter,
+		rack:          rack,
+		needleMapKind: needleMapKind,
+		ReadRedirect:  readRedirect,
 	}
 	vs.SetMasterNode(masterNode)
 	vs.store = storage.NewStore(port, ip, publicUrl, folders, maxCounts, vs.needleMapKind)

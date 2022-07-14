@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"weed/glog"
-	"weed/images"
 	"weed/operation"
 )
 
@@ -158,7 +157,7 @@ func ParseUpload(r *http.Request) (
 
 	return
 }
-func NewNeedle(r *http.Request, fixJpgOrientation bool) (n *Needle, e error) {
+func NewNeedle(r *http.Request) (n *Needle, e error) {
 	var pairMap map[string]string
 	fname, mimeType, isGzipped, isChunkedFile := "", "", false, false
 	n = new(Needle)
@@ -200,13 +199,6 @@ func NewNeedle(r *http.Request, fixJpgOrientation bool) (n *Needle, e error) {
 
 	if isChunkedFile {
 		n.SetIsChunkManifest()
-	}
-
-	if fixJpgOrientation {
-		loweredName := strings.ToLower(fname)
-		if mimeType == "image/jpeg" || strings.HasSuffix(loweredName, ".jpg") || strings.HasSuffix(loweredName, ".jpeg") {
-			n.Data = images.FixJpgOrientation(n.Data)
-		}
 	}
 
 	n.Checksum = NewCRC(n.Data)

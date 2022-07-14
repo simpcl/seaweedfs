@@ -34,7 +34,6 @@ type VolumeServerOptions struct {
 	rack                  *string
 	whiteList             []string
 	indexType             *string
-	fixJpgOrientation     *bool
 	readRedirect          *bool
 	enableBytesCache      *bool
 }
@@ -53,7 +52,6 @@ func init() {
 	v.dataCenter = cmdVolume.Flag.String("dataCenter", "", "current volume server's data center name")
 	v.rack = cmdVolume.Flag.String("rack", "", "current volume server's rack name")
 	v.indexType = cmdVolume.Flag.String("index", "memory", "Choose [memory|leveldb|boltdb|btree] mode for memory~performance balance.")
-	v.fixJpgOrientation = cmdVolume.Flag.Bool("images.fix.orientation", true, "Adjust jpg orientation when uploading.")
 	v.readRedirect = cmdVolume.Flag.Bool("read.redirect", true, "Redirect moved or non-local volumes.")
 	v.enableBytesCache = cmdVolume.Flag.Bool("cache.enable", false, "direct cache instead of OS cache, cost more memory.")
 }
@@ -135,7 +133,7 @@ func runVolume(cmd *Command, args []string) bool {
 		volumeNeedleMapKind,
 		*v.master, *v.pulseSeconds, *v.dataCenter, *v.rack,
 		v.whiteList,
-		*v.fixJpgOrientation, *v.readRedirect,
+		*v.readRedirect,
 		*v.enableBytesCache,
 	)
 

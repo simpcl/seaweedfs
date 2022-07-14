@@ -24,7 +24,7 @@ func (vs *VolumeServer) PostHandler(w http.ResponseWriter, r *http.Request) {
 		writeJsonError(w, r, http.StatusBadRequest, ve)
 		return
 	}
-	needle, ne := storage.NewNeedle(r, vs.FixJpgOrientation)
+	needle, ne := storage.NewNeedle(r)
 	if ne != nil {
 		writeJsonError(w, r, http.StatusBadRequest, ne)
 		return

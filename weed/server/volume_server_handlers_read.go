@@ -15,7 +15,6 @@ import (
 	"encoding/json"
 
 	"weed/glog"
-	"weed/images"
 	"weed/operation"
 	"weed/storage"
 	"weed/util"
@@ -136,16 +135,6 @@ func (vs *VolumeServer) GetOrHeadHandler(w http.ResponseWriter, r *http.Request)
 			}
 		}
 	}
-	if ext == ".png" || ext == ".jpg" || ext == ".gif" {
-		width, height := 0, 0
-		if r.FormValue("width") != "" {
-			width, _ = strconv.Atoi(r.FormValue("width"))
-		}
-		if r.FormValue("height") != "" {
-			height, _ = strconv.Atoi(r.FormValue("height"))
-		}
-		n.Data, _, _ = images.Resized(ext, n.Data, width, height, r.FormValue("mode"))
-	}
 
 	if e := writeResponseContent(filename, mtype, bytes.NewReader(n.Data), w, r); e != nil {
 		glog.V(2).Infoln("response write error:", e)
@@ -153,15 +142,7 @@ func (vs *VolumeServer) GetOrHeadHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (vs *VolumeServer) FaviconHandler(w http.ResponseWriter, r *http.Request) {
-	data, err := images.Asset("favicon/favicon.ico")
-	if err != nil {
-		glog.V(2).Infoln("favicon read error:", err)
-		return
-	}
-
-	if e := writeResponseContent("favicon.ico", "image/x-icon", bytes.NewReader(data), w, r); e != nil {
-		glog.V(2).Infoln("response write error:", e)
-	}
+	glog.V(2).Infoln("favicon read error: null")
 }
 
 func (vs *VolumeServer) tryHandleChunkedFile(n *storage.Needle, fileName string, w http.ResponseWriter, r *http.Request) (processed bool) {

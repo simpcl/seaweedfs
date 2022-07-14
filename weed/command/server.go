@@ -74,7 +74,6 @@ var (
 	volumeMaxDataVolumeCounts     = cmdServer.Flag.String("volume.max", "7", "maximum numbers of volumes, count[,count]...")
 	volumePulse                   = cmdServer.Flag.Int("pulseSeconds", 5, "number of seconds between heartbeats")
 	volumeIndexType               = cmdServer.Flag.String("volume.index", "memory", "Choose [memory|leveldb|boltdb|btree] mode for memory~performance balance.")
-	volumeFixJpgOrientation       = cmdServer.Flag.Bool("volume.images.fix.orientation", true, "Adjust jpg orientation when uploading.")
 	volumeReadRedirect            = cmdServer.Flag.Bool("volume.read.redirect", true, "Redirect moved or non-local volumes.")
 	volumeServerPublicUrl         = cmdServer.Flag.String("volume.publicUrl", "", "publicly accessible address")
 	volumeEnableBytesCache        = cmdServer.Flag.Bool("volume.cache.enable", false, "direct cache instead of OS cache, cost more memory.")
@@ -266,7 +265,7 @@ func runServer(cmd *Command, args []string) bool {
 		folders, maxCounts,
 		volumeNeedleMapKind,
 		*serverIp+":"+strconv.Itoa(*masterPort), *volumePulse, *serverDataCenter, *serverRack,
-		serverWhiteList, *volumeFixJpgOrientation, *volumeReadRedirect,
+		serverWhiteList, *volumeReadRedirect,
 		*volumeEnableBytesCache,
 	)
 
