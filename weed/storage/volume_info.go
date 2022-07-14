@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/chrislusf/seaweedfs/weed/pb"
+	"weed/pb"
 )
 
 type VolumeInfo struct {

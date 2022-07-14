@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/images"
-	"github.com/chrislusf/seaweedfs/weed/operation"
+	"weed/glog"
+	"weed/images"
+	"weed/operation"
 )
 
 const (

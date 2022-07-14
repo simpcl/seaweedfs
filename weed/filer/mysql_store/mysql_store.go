@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chrislusf/seaweedfs/weed/filer"
+	"weed/filer"
 
 	_ "github.com/go-sql-driver/mysql"
 )

@@ -4,8 +4,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/storage"
+	"weed/glog"
+	"weed/storage"
 )
 
 func (t *Topology) StartRefreshWritableVolumes(garbageThreshold string) {

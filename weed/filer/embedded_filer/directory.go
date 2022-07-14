@@ -1,7 +1,7 @@
 package embedded_filer
 
 import (
-	"github.com/chrislusf/seaweedfs/weed/filer"
+	"weed/filer"
 )
 
 type DirectoryManager interface {

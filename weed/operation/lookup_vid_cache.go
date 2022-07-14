@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
+	"weed/glog"
 )
 
 type VidInfo struct {

@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/security"
-	"github.com/chrislusf/seaweedfs/weed/storage"
+	"weed/glog"
+	"weed/security"
+	"weed/storage"
 )
 
 type VolumeServer struct {

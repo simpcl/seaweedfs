@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/chrislusf/seaweedfs/weed/storage"
+	"weed/storage"
 )
 
 var (

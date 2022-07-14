@@ -14,7 +14,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
+	"weed/glog"
 )
 
 type Config struct {

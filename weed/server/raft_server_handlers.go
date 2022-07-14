@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"strings"
 
+	"weed/glog"
+	"weed/operation"
+
 	"github.com/chrislusf/raft"
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/operation"
 )
 
 // Handles incoming RAFT joins.

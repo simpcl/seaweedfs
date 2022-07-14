@@ -6,8 +6,8 @@ import (
 	"math/rand"
 	"sync"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/storage"
+	"weed/glog"
+	"weed/storage"
 )
 
 // mapping from volume to its locations, inverted from server to volume

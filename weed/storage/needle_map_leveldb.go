@@ -5,9 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/storage/needle"
-	"github.com/chrislusf/seaweedfs/weed/util"
+	"weed/glog"
+	"weed/storage/needle"
+	"weed/util"
+
 	"github.com/syndtr/goleveldb/leveldb"
 )
 

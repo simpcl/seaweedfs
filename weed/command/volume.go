@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/server"
-	"github.com/chrislusf/seaweedfs/weed/storage"
-	"github.com/chrislusf/seaweedfs/weed/util"
+	"weed/glog"
+	weed_server "weed/server"
+	"weed/storage"
+	"weed/util"
 )
 
 var (

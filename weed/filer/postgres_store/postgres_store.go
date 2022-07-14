@@ -8,12 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chrislusf/seaweedfs/weed/filer"
-	"github.com/chrislusf/seaweedfs/weed/glog"
+	"weed/filer"
+	"weed/glog"
 
-	_ "github.com/lib/pq"
 	_ "path/filepath"
 	"strings"
+
+	_ "github.com/lib/pq"
 )
 
 const (

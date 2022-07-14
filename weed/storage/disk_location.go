@@ -8,7 +8,7 @@ import (
 
 	"fmt"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
+	"weed/glog"
 )
 
 type DiskLocation struct {

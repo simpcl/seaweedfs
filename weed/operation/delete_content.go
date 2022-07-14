@@ -10,8 +10,8 @@ import (
 
 	"net/http"
 
-	"github.com/chrislusf/seaweedfs/weed/security"
-	"github.com/chrislusf/seaweedfs/weed/util"
+	"weed/security"
+	"weed/util"
 )
 
 type DeleteResult struct {

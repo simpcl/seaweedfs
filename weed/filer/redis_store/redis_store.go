@@ -1,7 +1,7 @@
 package redis_store
 
 import (
-	"github.com/chrislusf/seaweedfs/weed/filer"
+	"weed/filer"
 
 	redis "gopkg.in/redis.v2"
 )

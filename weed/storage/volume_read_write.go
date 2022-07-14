@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
+	"weed/glog"
 )
 
 // isFileUnchanged checks whether this needle to write is same as last one.

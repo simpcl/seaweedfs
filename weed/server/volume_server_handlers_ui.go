@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/chrislusf/seaweedfs/weed/stats"
-	"github.com/chrislusf/seaweedfs/weed/util"
-	ui "github.com/chrislusf/seaweedfs/weed/server/volume_server_ui"
+	ui "weed/server/volume_server_ui"
+	"weed/stats"
+	"weed/util"
 )
 
 func (vs *VolumeServer) uiStatusHandler(w http.ResponseWriter, r *http.Request) {

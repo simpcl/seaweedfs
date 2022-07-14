@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/pb"
-	"github.com/chrislusf/seaweedfs/weed/security"
-	"github.com/chrislusf/seaweedfs/weed/storage"
+	"weed/glog"
+	"weed/pb"
+	"weed/security"
+	"weed/storage"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )

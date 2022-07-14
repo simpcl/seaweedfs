@@ -4,10 +4,11 @@ import (
 	"net"
 	"strings"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/pb"
-	"github.com/chrislusf/seaweedfs/weed/storage"
-	"github.com/chrislusf/seaweedfs/weed/topology"
+	"weed/glog"
+	"weed/pb"
+	"weed/storage"
+	"weed/topology"
+
 	"google.golang.org/grpc/peer"
 )
 

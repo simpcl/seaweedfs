@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/chrislusf/seaweedfs/weed/operation"
-	filer_operation "github.com/chrislusf/seaweedfs/weed/operation/filer"
-	"github.com/chrislusf/seaweedfs/weed/security"
+	"weed/operation"
+	filer_operation "weed/operation/filer"
+	"weed/security"
 )
 
 var (

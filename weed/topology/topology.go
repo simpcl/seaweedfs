@@ -4,11 +4,12 @@ import (
 	"errors"
 	"math/rand"
 
+	"weed/glog"
+	"weed/sequence"
+	"weed/storage"
+	"weed/util"
+
 	"github.com/chrislusf/raft"
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/sequence"
-	"github.com/chrislusf/seaweedfs/weed/storage"
-	"github.com/chrislusf/seaweedfs/weed/util"
 )
 
 type Topology struct {

@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/operation"
-	"github.com/chrislusf/seaweedfs/weed/security"
-	"github.com/chrislusf/seaweedfs/weed/stats"
-	"github.com/chrislusf/seaweedfs/weed/storage"
-	"github.com/chrislusf/seaweedfs/weed/util"
+	"weed/glog"
+	"weed/operation"
+	"weed/security"
+	"weed/stats"
+	"weed/storage"
+	"weed/util"
 )
 
 var serverStats *stats.ServerStats

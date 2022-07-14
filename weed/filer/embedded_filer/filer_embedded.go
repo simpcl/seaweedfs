@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/chrislusf/seaweedfs/weed/filer"
-	"github.com/chrislusf/seaweedfs/weed/operation"
+	"weed/filer"
+	"weed/operation"
 )
 
 type FilerEmbedded struct {

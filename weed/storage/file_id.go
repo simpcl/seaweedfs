@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/util"
+	"weed/glog"
+	"weed/util"
 )
 
 type FileId struct {

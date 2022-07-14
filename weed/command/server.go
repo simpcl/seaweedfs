@@ -10,11 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/pb"
-	"github.com/chrislusf/seaweedfs/weed/server"
-	"github.com/chrislusf/seaweedfs/weed/storage"
-	"github.com/chrislusf/seaweedfs/weed/util"
+	"weed/glog"
+	"weed/pb"
+	weed_server "weed/server"
+	"weed/storage"
+	"weed/util"
+
 	"github.com/gorilla/mux"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"

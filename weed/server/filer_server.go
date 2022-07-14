@@ -9,17 +9,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chrislusf/seaweedfs/weed/filer"
-	"github.com/chrislusf/seaweedfs/weed/filer/cassandra_store"
-	"github.com/chrislusf/seaweedfs/weed/filer/embedded_filer"
-	"github.com/chrislusf/seaweedfs/weed/filer/flat_namespace"
-	"github.com/chrislusf/seaweedfs/weed/filer/mysql_store"
-	"github.com/chrislusf/seaweedfs/weed/filer/postgres_store"
-	"github.com/chrislusf/seaweedfs/weed/filer/redis_store"
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/security"
-	"github.com/chrislusf/seaweedfs/weed/storage"
-	"github.com/chrislusf/seaweedfs/weed/util"
+	"weed/filer"
+	"weed/filer/cassandra_store"
+	"weed/filer/embedded_filer"
+	"weed/filer/flat_namespace"
+	"weed/filer/mysql_store"
+	"weed/filer/postgres_store"
+	"weed/filer/redis_store"
+	"weed/glog"
+	"weed/security"
+	"weed/storage"
+	"weed/util"
 )
 
 type filerConf struct {

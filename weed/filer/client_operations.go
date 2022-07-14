@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/chrislusf/seaweedfs/weed/util"
+	"weed/util"
 )
 
 type ApiRequest struct {

@@ -22,7 +22,6 @@ var Commands = []*Command{
 	cmdVersion,
 	cmdVolume,
 	cmdExport,
-	cmdMount,
 }
 
 type Command struct {

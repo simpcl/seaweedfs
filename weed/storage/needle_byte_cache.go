@@ -5,9 +5,9 @@ import (
 	"os"
 	"sync/atomic"
 
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 
-	"github.com/chrislusf/seaweedfs/weed/util"
+	"weed/util"
 )
 
 var (

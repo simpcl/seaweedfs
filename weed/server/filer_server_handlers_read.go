@@ -7,11 +7,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chrislusf/seaweedfs/weed/filer"
-	"github.com/chrislusf/seaweedfs/weed/glog"
-	"github.com/chrislusf/seaweedfs/weed/operation"
-	ui "github.com/chrislusf/seaweedfs/weed/server/filer_ui"
-	"github.com/chrislusf/seaweedfs/weed/util"
+	"weed/filer"
+	"weed/glog"
+	"weed/operation"
+	ui "weed/server/filer_ui"
+	"weed/util"
+
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
