@@ -90,6 +90,7 @@ func runServer(cmd *Command, args []string) bool {
 		defer pprof.StopCPUProfile()
 	}
 
+	master := *serverIp + ":" + strconv.Itoa(*masterPort)
 	if *volumePublicPort == 0 {
 		*volumePublicPort = *volumePort
 	}
@@ -217,7 +218,7 @@ func runServer(cmd *Command, args []string) bool {
 		*serverIp, *volumePort, *volumeServerPublicUrl,
 		folders, maxCounts,
 		volumeNeedleMapKind,
-		*serverIp+":"+strconv.Itoa(*masterPort), *volumePulse, *serverDataCenter, *serverRack,
+		[]string{master}, *volumePulse, *serverDataCenter, *serverRack,
 		serverWhiteList, *volumeReadRedirect,
 	)
 

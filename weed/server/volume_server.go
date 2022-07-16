@@ -2,7 +2,6 @@ package weed_server
 
 import (
 	"net/http"
-	"sync"
 
 	"weed/glog"
 	"weed/security"
@@ -10,14 +9,13 @@ import (
 )
 
 type VolumeServer struct {
-	masterNode   string
-	mnLock       sync.RWMutex
-	pulseSeconds int
-	dataCenter   string
-	rack         string
-	store        *storage.Store
-	guard        *security.Guard
-	masterNodes  *storage.MasterNodes
+	MasterNodes   []string
+	currentMaster string
+	pulseSeconds  int
+	dataCenter    string
+	rack          string
+	store         *storage.Store
+	guard         *security.Guard
 
 	needleMapKind storage.NeedleMapType
 	ReadRedirect  bool
@@ -27,7 +25,7 @@ func NewVolumeServer(adminMux, publicMux *http.ServeMux, ip string,
 	port int, publicUrl string,
 	folders []string, maxCounts []int,
 	needleMapKind storage.NeedleMapType,
-	masterNode string, pulseSeconds int,
+	masterNodes []string, pulseSeconds int,
 	dataCenter string, rack string,
 	whiteList []string,
 	readRedirect bool) *VolumeServer {
@@ -38,7 +36,7 @@ func NewVolumeServer(adminMux, publicMux *http.ServeMux, ip string,
 		needleMapKind: needleMapKind,
 		ReadRedirect:  readRedirect,
 	}
-	vs.SetMasterNode(masterNode)
+	vs.MasterNodes = masterNodes
 	vs.store = storage.NewStore(port, ip, publicUrl, folders, maxCounts, vs.needleMapKind)
 
 	vs.guard = security.NewGuard(whiteList, "")
@@ -71,18 +69,6 @@ func NewVolumeServer(adminMux, publicMux *http.ServeMux, ip string,
 	go vs.heartbeat()
 
 	return vs
-}
-
-func (vs *VolumeServer) GetMasterNode() string {
-	vs.mnLock.RLock()
-	defer vs.mnLock.RUnlock()
-	return vs.masterNode
-}
-
-func (vs *VolumeServer) SetMasterNode(masterNode string) {
-	vs.mnLock.Lock()
-	defer vs.mnLock.Unlock()
-	vs.masterNode = masterNode
 }
 
 func (vs *VolumeServer) Shutdown() {
