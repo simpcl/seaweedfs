@@ -251,6 +251,9 @@ func (vl *VolumeLayout) SetVolumeCapacityFull(vid storage.VolumeId) bool {
 }
 
 func (vl *VolumeLayout) ToMap() map[string]interface{} {
+	vl.accessLock.RLock()
+	defer vl.accessLock.RUnlock()
+
 	m := make(map[string]interface{})
 	m["replication"] = vl.rp.String()
 	m["ttl"] = vl.ttl.String()
