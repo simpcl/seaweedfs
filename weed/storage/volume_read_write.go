@@ -13,9 +13,9 @@ import (
 
 // isFileUnchanged checks whether this needle to write is same as last one.
 // It requires serialized access in the same volume.
-func (v *Volume) isFileUnchanged(n *Needle) bool {
+func (v *Volume) isFileUnchanged(n *Needle) (bool, error) {
 	if v.Ttl.String() != "" {
-		return false
+		return false, nil
 	}
 	nv, ok := v.nm.Get(n.Id)
 	if ok && nv.Offset > 0 {
@@ -23,14 +23,17 @@ func (v *Volume) isFileUnchanged(n *Needle) bool {
 		err := oldNeedle.ReadData(v.dataFile, int64(nv.Offset)*NeedlePaddingSize, nv.Size, v.Version())
 		if err != nil {
 			glog.V(0).Infof("Failed to check updated file %v", err)
-			return false
+			return false, err
+		}
+		if oldNeedle.Cookie != n.Cookie {
+			return false, fmt.Errorf("cookies not equal: old:%d, new:%d", oldNeedle.Cookie, n.Cookie)
 		}
 		if oldNeedle.Checksum == n.Checksum && bytes.Equal(oldNeedle.Data, n.Data) {
 			n.DataSize = oldNeedle.DataSize
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // Destroy removes everything related to this volume
@@ -72,7 +75,7 @@ func (v *Volume) AppendBlob(b []byte) (offset int64, err error) {
 	return
 }
 
-func (v *Volume) writeNeedle(n *Needle) (size uint32, err error) {
+func (v *Volume) writeNeedle(n *Needle, overwrite bool) (size uint32, err error) {
 	glog.V(4).Infof("writing needle %s", NewFileIdFromNeedle(v.Id, n).String())
 	if v.readOnly {
 		err = fmt.Errorf("%s is read-only", v.dataFile.Name())
@@ -80,7 +83,20 @@ func (v *Volume) writeNeedle(n *Needle) (size uint32, err error) {
 	}
 	v.dataFileAccessLock.Lock()
 	defer v.dataFileAccessLock.Unlock()
-	if v.isFileUnchanged(n) {
+	if !overwrite {
+		_, ok := v.nm.Get(n.Id)
+		if ok {
+			err = fmt.Errorf("Needle %x of volume %d exists", n.Id, v.Id)
+			return
+		}
+	}
+	var unchanged bool
+	unchanged, err = v.isFileUnchanged(n)
+	if err != nil {
+		glog.V(0).Infof("failed to check needle %s unchanged: %v", NewFileIdFromNeedle(v.Id, n).String(), err)
+		return
+	}
+	if unchanged {
 		size = n.DataSize
 		glog.V(4).Infof("needle is unchanged!")
 		return

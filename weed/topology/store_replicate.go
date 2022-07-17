@@ -19,20 +19,20 @@ import (
 
 func ReplicatedWrite(masterNode string, s *storage.Store,
 	volumeId storage.VolumeId, needle *storage.Needle,
-	r *http.Request) (size uint32, errorStatus string) {
+	r *http.Request, overwrite bool) (size uint32, errorStatus string) {
 
 	//check JWT
 	jwt := security.GetJwt(r)
 
 	needToReplicate := true
 	if s.HasVolume(volumeId) {
-		ret, err := s.Write(volumeId, needle)
+		ret, err := s.Write(volumeId, needle, overwrite)
 		if err != nil {
-			errorStatus = "Failed to write to local disk (" + err.Error() + ")"
+			errorStatus = "Failed to write to local disk: " + err.Error()
 			return
 		}
 		if ret != needle.DataSize {
-			errorStatus = fmt.Sprintf("Failed to write to local disk (ret %d != data size %d ", ret, needle.DataSize)
+			errorStatus = fmt.Sprintf("Failed to write to local disk: ret %d != data size %d ", ret, needle.DataSize)
 			return
 		}
 		glog.V(4).Infof("write needle %s successfuly", storage.NewFileIdFromNeedle(volumeId, needle).String())
@@ -74,9 +74,16 @@ func ReplicatedWrite(masterNode string, s *storage.Store,
 			}
 		}
 
-		_, err := operation.Upload(u.String(),
-			string(needle.Name), bytes.NewReader(needle.Data), needle.IsGzipped(), string(needle.Mime),
-			pairMap, jwt)
+		var err error
+		if overwrite {
+			_, err = operation.UploadWithPut(u.String(),
+				string(needle.Name), bytes.NewReader(needle.Data), needle.IsGzipped(), string(needle.Mime),
+				pairMap, jwt)
+		} else {
+			_, err = operation.Upload(u.String(),
+				string(needle.Name), bytes.NewReader(needle.Data), needle.IsGzipped(), string(needle.Mime),
+				pairMap, jwt)
+		}
 		return err
 	}); err != nil {
 		size = 0
