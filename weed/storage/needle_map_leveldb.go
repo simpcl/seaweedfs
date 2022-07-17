@@ -18,6 +18,7 @@ type LevelDbNeedleMap struct {
 	baseNeedleMapper
 }
 
+// TODO avoid using btree to count deletions.
 func NewLevelDbNeedleMap(dbFileName string, indexFile *os.File) (m *LevelDbNeedleMap, err error) {
 	m = &LevelDbNeedleMap{dbFileName: dbFileName}
 	m.indexFile = indexFile
@@ -126,11 +127,12 @@ func (m *LevelDbNeedleMap) Delete(key uint64, offset uint32) error {
 }
 
 func (m *LevelDbNeedleMap) Close() {
+	m.indexFile.Close()
 	m.db.Close()
 }
 
 func (m *LevelDbNeedleMap) Destroy() error {
 	m.Close()
 	os.Remove(m.indexFile.Name())
-	return os.Remove(m.dbFileName)
+	return os.RemoveAll(m.dbFileName)
 }

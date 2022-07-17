@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"weed/glog"
-	"weed/pb"
+	"weed/pb/master_pb"
 	weed_server "weed/server"
 	"weed/storage"
 	"weed/util"
@@ -72,7 +72,6 @@ var (
 	volumeIndexType               = cmdServer.Flag.String("volume.index", "memory", "Choose [memory|leveldb|boltdb|btree] mode for memory~performance balance.")
 	volumeReadRedirect            = cmdServer.Flag.Bool("volume.read.redirect", true, "Redirect moved or non-local volumes.")
 	volumeServerPublicUrl         = cmdServer.Flag.String("volume.publicUrl", "", "publicly accessible address")
-	volumeEnableBytesCache        = cmdServer.Flag.Bool("volume.cache.enable", false, "direct cache instead of OS cache, cost more memory.")
 
 	serverWhiteList []string
 )
@@ -91,6 +90,7 @@ func runServer(cmd *Command, args []string) bool {
 		defer pprof.StopCPUProfile()
 	}
 
+	master := *serverIp + ":" + strconv.Itoa(*masterPort)
 	if *volumePublicPort == 0 {
 		*volumePublicPort = *volumePort
 	}
@@ -117,6 +117,10 @@ func runServer(cmd *Command, args []string) bool {
 		if err := util.TestFolderWritable(folder); err != nil {
 			glog.Fatalf("Check Data Folder(-dir) Writable %s : %s", folder, err)
 		}
+	}
+
+	if *masterVolumeSizeLimitMB > 30*1000 {
+		glog.Fatalf("masterVolumeSizeLimitMB should be less than 30000")
 	}
 
 	if *masterMetaFolder == "" {
@@ -173,7 +177,7 @@ func runServer(cmd *Command, args []string) bool {
 
 		// Create your protocol servers.
 		grpcS := grpc.NewServer()
-		pb.RegisterSeaweedServer(grpcS, ms)
+		master_pb.RegisterSeaweedServer(grpcS, ms)
 		reflection.Register(grpcS)
 
 		httpS := &http.Server{Handler: r}
@@ -214,9 +218,8 @@ func runServer(cmd *Command, args []string) bool {
 		*serverIp, *volumePort, *volumeServerPublicUrl,
 		folders, maxCounts,
 		volumeNeedleMapKind,
-		*serverIp+":"+strconv.Itoa(*masterPort), *volumePulse, *serverDataCenter, *serverRack,
+		[]string{master}, *volumePulse, *serverDataCenter, *serverRack,
 		serverWhiteList, *volumeReadRedirect,
-		*volumeEnableBytesCache,
 	)
 
 	glog.V(0).Infoln("Start Seaweed volume server", util.VERSION, "at", *serverIp+":"+strconv.Itoa(*volumePort))
@@ -241,7 +244,7 @@ func runServer(cmd *Command, args []string) bool {
 		}()
 	}
 
-	OnInterrupt(func() {
+	util.OnInterrupt(func() {
 		volumeServer.Shutdown()
 		pprof.StopCPUProfile()
 	})

@@ -163,12 +163,12 @@ func (n *NodeImpl) ReserveOneVolume(r int) (assignedNode *DataNode, err error) {
 				return node.(*DataNode), nil
 			}
 			assignedNode, err = node.ReserveOneVolume(r)
-			if err != nil {
+			if err == nil {
 				return
 			}
 		}
 	}
-	return
+	return nil, errors.New("No free volume slot found!")
 }
 
 func (n *NodeImpl) UpAdjustMaxVolumeCountDelta(maxVolumeCountDelta int) { //can be negative

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
+	"time"
 
 	"weed/glog"
 	"weed/operation"
@@ -31,7 +33,7 @@ func (vs *VolumeServer) PostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ret := operation.UploadResult{}
-	size, errorStatus := topology.ReplicatedWrite(vs.GetMasterNode(),
+	size, errorStatus := topology.ReplicatedWrite(vs.GetMaster(),
 		vs.store, volumeId, needle, r)
 	httpStatus := http.StatusCreated
 	if errorStatus != "" {
@@ -64,7 +66,6 @@ func (vs *VolumeServer) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		writeJsonQuiet(w, r, http.StatusNotFound, m)
 		return
 	}
-	defer n.ReleaseMemory()
 
 	if n.Cookie != cookie {
 		glog.V(0).Infoln("delete", r.URL.Path, "with unmaching cookie from ", r.RemoteAddr, "agent", r.UserAgent())
@@ -81,14 +82,22 @@ func (vs *VolumeServer) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// make sure all chunks had deleted before delete manifest
-		if e := chunkManifest.DeleteChunks(vs.GetMasterNode()); e != nil {
+		if e := chunkManifest.DeleteChunks(vs.GetMaster()); e != nil {
 			writeJsonError(w, r, http.StatusInternalServerError, fmt.Errorf("Delete chunks error: %v", e))
 			return
 		}
 		count = chunkManifest.Size
 	}
 
-	_, err := topology.ReplicatedDelete(vs.GetMasterNode(), vs.store, volumeId, n, r)
+	n.LastModified = uint64(time.Now().Unix())
+	if len(r.FormValue("ts")) > 0 {
+		modifiedTime, err := strconv.ParseInt(r.FormValue("ts"), 10, 64)
+		if err == nil {
+			n.LastModified = uint64(modifiedTime)
+		}
+	}
+
+	_, err := topology.ReplicatedDelete(vs.GetMaster(), vs.store, volumeId, n, r)
 
 	if err == nil {
 		m := make(map[string]int64)
@@ -104,6 +113,7 @@ func (vs *VolumeServer) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 func (vs *VolumeServer) batchDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	var ret []operation.DeleteResult
+	now := uint64(time.Now().Unix())
 	for _, fid := range r.Form["fid"] {
 		vid, id_cookie, err := operation.ParseFileId(fid)
 		if err != nil {
@@ -133,7 +143,6 @@ func (vs *VolumeServer) batchDeleteHandler(w http.ResponseWriter, r *http.Reques
 				Status: http.StatusNotAcceptable,
 				Error:  "ChunkManifest: not allowed in batch delete mode.",
 			})
-			n.ReleaseMemory()
 			continue
 		}
 
@@ -144,9 +153,9 @@ func (vs *VolumeServer) batchDeleteHandler(w http.ResponseWriter, r *http.Reques
 				Error:  "File Random Cookie does not match.",
 			})
 			glog.V(0).Infoln("deleting", fid, "with unmaching cookie from ", r.RemoteAddr, "agent", r.UserAgent())
-			n.ReleaseMemory()
 			return
 		}
+		n.LastModified = now
 		if size, err := vs.store.Delete(volumeId, n); err != nil {
 			ret = append(ret, operation.DeleteResult{
 				Fid:    fid,
@@ -160,7 +169,6 @@ func (vs *VolumeServer) batchDeleteHandler(w http.ResponseWriter, r *http.Reques
 				Size:   int(size)},
 			)
 		}
-		n.ReleaseMemory()
 	}
 
 	writeJsonQuiet(w, r, http.StatusAccepted, ret)

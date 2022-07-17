@@ -76,11 +76,12 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 	r.HandleFunc("/vol/vacuum", ms.proxyToLeader(ms.guard.WhiteList(ms.volumeVacuumHandler)))
 	r.HandleFunc("/submit", ms.guard.WhiteList(ms.submitFromMasterServerHandler))
 	r.HandleFunc("/delete", ms.guard.WhiteList(ms.deleteFromMasterServerHandler))
-	r.HandleFunc("/{fileId}", ms.proxyToLeader(ms.redirectHandler))
+	r.HandleFunc("/stats/health", ms.guard.WhiteList(statsHealthHandler))
 	r.HandleFunc("/stats/counter", ms.guard.WhiteList(statsCounterHandler))
 	r.HandleFunc("/stats/memory", ms.guard.WhiteList(statsMemoryHandler))
+	r.HandleFunc("/{fileId}", ms.proxyToLeader(ms.redirectHandler))
 
-	ms.Topo.StartRefreshWritableVolumes(garbageThreshold)
+	ms.Topo.StartRefreshWritableVolumes(garbageThreshold, ms.preallocate)
 
 	return ms
 }
@@ -88,6 +89,7 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 func (ms *MasterServer) SetRaftServer(raftServer *RaftServer) {
 	ms.Topo.RaftServer = raftServer.raftServer
 	ms.Topo.RaftServer.AddEventListener(raft.LeaderChangeEventType, func(e raft.Event) {
+		glog.V(0).Infof("event: %+v", e)
 		if ms.Topo.RaftServer.Leader() != "" {
 			glog.V(0).Infoln("[", ms.Topo.RaftServer.Name(), "]", ms.Topo.RaftServer.Leader(), "becomes leader.")
 		}

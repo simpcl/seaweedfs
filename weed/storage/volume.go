@@ -29,6 +29,7 @@ type Volume struct {
 }
 
 func NewVolume(dirname string, collection string, id VolumeId, needleMapKind NeedleMapType, replicaPlacement *ReplicaPlacement, ttl *TTL, preallocate int64) (v *Volume, e error) {
+	// if replicaPlacement is nil, the superblock will be loaded from disk
 	v = &Volume{dir: dirname, Collection: collection, Id: id}
 	v.SuperBlock = SuperBlock{ReplicaPlacement: replicaPlacement, Ttl: ttl}
 	v.needleMapKind = needleMapKind
@@ -61,7 +62,7 @@ func (v *Volume) Size() int64 {
 		return stat.Size()
 	}
 	glog.V(0).Infof("Failed to read file size %s %v", v.dataFile.Name(), e)
-	return -1
+	return 0 // -1 causes integer overflow and the volume to become unwritable.
 }
 
 // Close cleanly shuts down this volume

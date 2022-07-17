@@ -45,7 +45,7 @@ func (vs *VolumeServer) GetOrHeadHandler(w http.ResponseWriter, r *http.Request)
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		lookupResult, err := operation.Lookup(vs.GetMasterNode(), volumeId.String())
+		lookupResult, err := operation.Lookup(vs.GetMaster(), volumeId.String())
 		glog.V(2).Infoln("volume", volumeId, "found on", lookupResult, "error", err)
 		if err == nil && len(lookupResult.Locations) > 0 {
 			u, _ := url.Parse(util.NormalizeUrl(lookupResult.Locations[0].PublicUrl))
@@ -71,7 +71,6 @@ func (vs *VolumeServer) GetOrHeadHandler(w http.ResponseWriter, r *http.Request)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	defer n.ReleaseMemory()
 	if n.Cookie != cookie {
 		glog.V(0).Infoln("request", r.URL.Path, "with unmaching cookie seen:", cookie, "expected:", n.Cookie, "from", r.RemoteAddr, "agent", r.UserAgent())
 		w.WriteHeader(http.StatusNotFound)
@@ -170,7 +169,7 @@ func (vs *VolumeServer) tryHandleChunkedFile(n *storage.Needle, fileName string,
 
 	chunkedFileReader := &operation.ChunkedFileReader{
 		Manifest: chunkManifest,
-		Master:   vs.GetMasterNode(),
+		Master:   vs.GetMaster(),
 	}
 	defer chunkedFileReader.Close()
 	if e := writeResponseContent(fileName, mType, chunkedFileReader, w, r); e != nil {

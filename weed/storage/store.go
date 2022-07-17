@@ -1,68 +1,17 @@
 package storage
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"weed/glog"
-	"weed/operation"
-	"weed/pb"
+	"weed/pb/master_pb"
 )
 
 const (
 	MAX_TTL_VOLUME_REMOVAL_DELAY = 10 // 10 minutes
 )
-
-type MasterNodes struct {
-	nodes          []string
-	leader         string
-	possibleLeader string
-}
-
-func (mn *MasterNodes) String() string {
-	return fmt.Sprintf("nodes:%v, leader:%s", mn.nodes, mn.leader)
-}
-
-func NewMasterNodes(bootstrapNode string) (mn *MasterNodes) {
-	mn = &MasterNodes{nodes: []string{bootstrapNode}, leader: ""}
-	return
-}
-func (mn *MasterNodes) Reset() {
-	if mn.leader != "" {
-		mn.leader = ""
-		glog.V(0).Infof("Resetting master nodes: %v", mn)
-	}
-}
-func (mn *MasterNodes) SetPossibleLeader(possibleLeader string) {
-	// TODO try to check this leader first
-	mn.possibleLeader = possibleLeader
-}
-func (mn *MasterNodes) FindMaster() (leader string, err error) {
-	if len(mn.nodes) == 0 {
-		return "", errors.New("No master node found!")
-	}
-	if mn.leader == "" {
-		for _, m := range mn.nodes {
-			glog.V(4).Infof("Listing masters on %s", m)
-			if leader, masters, e := operation.ListMasters(m); e == nil {
-				if leader != "" {
-					mn.nodes = append(masters, m)
-					mn.leader = leader
-					glog.V(2).Infof("current master nodes is %v", mn)
-					break
-				}
-			} else {
-				glog.V(4).Infof("Failed listing masters on %s: %v", m, e)
-			}
-		}
-	}
-	if mn.leader == "" {
-		return "", errors.New("No master node available!")
-	}
-	return mn.leader, nil
-}
 
 /*
  * A VolumeServer contains one Store
@@ -76,7 +25,7 @@ type Store struct {
 	rack            string //optional information, overwriting master setting if exists
 	connected       bool
 	VolumeSizeLimit uint64 //read from the master
-	Client          pb.Seaweed_SendHeartbeatClient
+	Client          master_pb.Seaweed_SendHeartbeatClient
 	NeedleMapType   NeedleMapType
 }
 
@@ -208,8 +157,8 @@ func (s *Store) SetRack(rack string) {
 	s.rack = rack
 }
 
-func (s *Store) CollectHeartbeat() *pb.Heartbeat {
-	var volumeMessages []*pb.VolumeInformationMessage
+func (s *Store) CollectHeartbeat() *master_pb.Heartbeat {
+	var volumeMessages []*master_pb.VolumeInformationMessage
 	maxVolumeCount := 0
 	var maxFileKey uint64
 	for _, location := range s.Locations {
@@ -220,7 +169,7 @@ func (s *Store) CollectHeartbeat() *pb.Heartbeat {
 				maxFileKey = v.nm.MaxFileKey()
 			}
 			if !v.expired(s.VolumeSizeLimit) {
-				volumeMessage := &pb.VolumeInformationMessage{
+				volumeMessage := &master_pb.VolumeInformationMessage{
 					Id:               uint32(k),
 					Size:             uint64(v.Size()),
 					Collection:       v.Collection,
@@ -245,7 +194,7 @@ func (s *Store) CollectHeartbeat() *pb.Heartbeat {
 		location.Unlock()
 	}
 
-	return &pb.Heartbeat{
+	return &master_pb.Heartbeat{
 		Ip:             s.Ip,
 		Port:           uint32(s.Port),
 		PublicUrl:      s.PublicUrl,

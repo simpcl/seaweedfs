@@ -26,7 +26,7 @@ type VolumeServerOptions struct {
 	ip                    *string
 	publicUrl             *string
 	bindIp                *string
-	master                *string
+	masters               *string
 	pulseSeconds          *int
 	idleConnectionTimeout *int
 	maxCpu                *int
@@ -35,7 +35,8 @@ type VolumeServerOptions struct {
 	whiteList             []string
 	indexType             *string
 	readRedirect          *bool
-	enableBytesCache      *bool
+	cpuProfile            *string
+	memProfile            *string
 }
 
 func init() {
@@ -45,7 +46,7 @@ func init() {
 	v.ip = cmdVolume.Flag.String("ip", "", "ip or server name")
 	v.publicUrl = cmdVolume.Flag.String("publicUrl", "", "Publicly accessible address")
 	v.bindIp = cmdVolume.Flag.String("ip.bind", "0.0.0.0", "ip address to bind to")
-	v.master = cmdVolume.Flag.String("mserver", "localhost:9333", "master server location")
+	v.masters = cmdVolume.Flag.String("mserver", "localhost:9333", "comma-separated master servers")
 	v.pulseSeconds = cmdVolume.Flag.Int("pulseSeconds", 5, "number of seconds between heartbeats, must be smaller than or equal to the master's setting")
 	v.idleConnectionTimeout = cmdVolume.Flag.Int("idleTimeout", 30, "connection idle seconds")
 	v.maxCpu = cmdVolume.Flag.Int("maxCpu", 0, "maximum number of CPUs. 0 means all available CPUs")
@@ -53,7 +54,8 @@ func init() {
 	v.rack = cmdVolume.Flag.String("rack", "", "current volume server's rack name")
 	v.indexType = cmdVolume.Flag.String("index", "memory", "Choose [memory|leveldb|boltdb|btree] mode for memory~performance balance.")
 	v.readRedirect = cmdVolume.Flag.Bool("read.redirect", true, "Redirect moved or non-local volumes.")
-	v.enableBytesCache = cmdVolume.Flag.Bool("cache.enable", false, "direct cache instead of OS cache, cost more memory.")
+	v.cpuProfile = cmdVolume.Flag.String("cpuprofile", "", "cpu profile output file")
+	v.memProfile = cmdVolume.Flag.String("memprofile", "", "memory profile output file")
 }
 
 var cmdVolume = &Command{
@@ -75,6 +77,7 @@ func runVolume(cmd *Command, args []string) bool {
 		*v.maxCpu = runtime.NumCPU()
 	}
 	runtime.GOMAXPROCS(*v.maxCpu)
+	util.SetupProfiling(*v.cpuProfile, *v.memProfile)
 
 	//Set multiple folders and each folder's max volume count limit'
 	v.folders = strings.Split(*volumeFolders, ",")
@@ -127,14 +130,16 @@ func runVolume(cmd *Command, args []string) bool {
 	case "btree":
 		volumeNeedleMapKind = storage.NeedleMapBtree
 	}
+
+	masters := *v.masters
+
 	volumeServer := weed_server.NewVolumeServer(volumeMux, publicVolumeMux,
 		*v.ip, *v.port, *v.publicUrl,
 		v.folders, v.folderMaxLimits,
 		volumeNeedleMapKind,
-		*v.master, *v.pulseSeconds, *v.dataCenter, *v.rack,
+		strings.Split(masters, ","), *v.pulseSeconds, *v.dataCenter, *v.rack,
 		v.whiteList,
 		*v.readRedirect,
-		*v.enableBytesCache,
 	)
 
 	listeningAddress := *v.bindIp + ":" + strconv.Itoa(*v.port)
@@ -157,7 +162,7 @@ func runVolume(cmd *Command, args []string) bool {
 		}()
 	}
 
-	OnInterrupt(func() {
+	util.OnInterrupt(func() {
 		volumeServer.Shutdown()
 	})
 
