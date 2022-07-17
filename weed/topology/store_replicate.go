@@ -24,59 +24,64 @@ func ReplicatedWrite(masterNode string, s *storage.Store,
 	//check JWT
 	jwt := security.GetJwt(r)
 
-	ret, err := s.Write(volumeId, needle)
-	needToReplicate := !s.HasVolume(volumeId)
-	if err != nil {
-		errorStatus = "Failed to write to local disk (" + err.Error() + ")"
-	} else {
-		needToReplicate = needToReplicate || s.GetVolume(volumeId).NeedToReplicate()
+	needToReplicate := true
+	if s.HasVolume(volumeId) {
+		ret, err := s.Write(volumeId, needle)
+		if err != nil {
+			errorStatus = "Failed to write to local disk (" + err.Error() + ")"
+			return
+		}
+		if ret != needle.DataSize {
+			errorStatus = fmt.Sprintf("Failed to write to local disk (ret %d != data size %d ", ret, needle.DataSize)
+			return
+		}
+		glog.V(4).Infof("write needle %s successfuly", storage.NewFileIdFromNeedle(volumeId, needle).String())
+		needToReplicate = s.GetVolume(volumeId).NeedToReplicate()
+		size = ret
 	}
 	if !needToReplicate {
-		needToReplicate = s.GetVolume(volumeId).NeedToReplicate()
+		return
 	}
-	if needToReplicate { //send to other replica locations
-		if r.FormValue("type") != "replicate" {
+	if r.FormValue("type") == "replicate" {
+		return
+	}
+	if err := distributedOperation(masterNode, s, volumeId, func(location operation.Location) error {
+		u := url.URL{
+			Scheme: "http",
+			Host:   location.Url,
+			Path:   r.URL.Path,
+		}
+		q := url.Values{
+			"type": {"replicate"},
+		}
+		if needle.LastModified > 0 {
+			q.Set("ts", strconv.FormatUint(needle.LastModified, 10))
+		}
+		if needle.IsChunkedManifest() {
+			q.Set("cm", "true")
+		}
+		u.RawQuery = q.Encode()
 
-			if err = distributedOperation(masterNode, s, volumeId, func(location operation.Location) error {
-				u := url.URL{
-					Scheme: "http",
-					Host:   location.Url,
-					Path:   r.URL.Path,
-				}
-				q := url.Values{
-					"type": {"replicate"},
-				}
-				if needle.LastModified > 0 {
-					q.Set("ts", strconv.FormatUint(needle.LastModified, 10))
-				}
-				if needle.IsChunkedManifest() {
-					q.Set("cm", "true")
-				}
-				u.RawQuery = q.Encode()
-
-				pairMap := make(map[string]string)
-				if needle.HasPairs() {
-					tmpMap := make(map[string]string)
-					err := json.Unmarshal(needle.Pairs, &tmpMap)
-					if err != nil {
-						glog.V(0).Infoln("Unmarshal pairs error:", err)
-					}
-					for k, v := range tmpMap {
-						pairMap[storage.PairNamePrefix+k] = v
-					}
-				}
-
-				_, err := operation.Upload(u.String(),
-					string(needle.Name), bytes.NewReader(needle.Data), needle.IsGzipped(), string(needle.Mime),
-					pairMap, jwt)
-				return err
-			}); err != nil {
-				ret = 0
-				errorStatus = fmt.Sprintf("Failed to write to replicas for volume %d: %v", volumeId, err)
+		pairMap := make(map[string]string)
+		if needle.HasPairs() {
+			tmpMap := make(map[string]string)
+			err := json.Unmarshal(needle.Pairs, &tmpMap)
+			if err != nil {
+				glog.V(0).Infoln("Unmarshal pairs error:", err)
+			}
+			for k, v := range tmpMap {
+				pairMap[storage.PairNamePrefix+k] = v
 			}
 		}
+
+		_, err := operation.Upload(u.String(),
+			string(needle.Name), bytes.NewReader(needle.Data), needle.IsGzipped(), string(needle.Mime),
+			pairMap, jwt)
+		return err
+	}); err != nil {
+		size = 0
+		errorStatus = fmt.Sprintf("Failed to write to replicas for volume %d: %v", volumeId, err)
 	}
-	size = ret
 	return
 }
 
