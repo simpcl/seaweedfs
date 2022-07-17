@@ -259,5 +259,13 @@ func (vl *VolumeLayout) ToMap() map[string]interface{} {
 	m["ttl"] = vl.ttl.String()
 	m["writables"] = vl.writables
 	//m["locations"] = vl.vid2location
+	oversized := []string{}
+	for k, v := range vl.oversizedVolumes {
+		if v {
+			oversized = append(oversized, k.String())
+		}
+	}
+	m["oversized"] = oversized
+
 	return m
 }
