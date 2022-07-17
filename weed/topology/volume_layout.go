@@ -251,10 +251,21 @@ func (vl *VolumeLayout) SetVolumeCapacityFull(vid storage.VolumeId) bool {
 }
 
 func (vl *VolumeLayout) ToMap() map[string]interface{} {
+	vl.accessLock.RLock()
+	defer vl.accessLock.RUnlock()
+
 	m := make(map[string]interface{})
 	m["replication"] = vl.rp.String()
 	m["ttl"] = vl.ttl.String()
 	m["writables"] = vl.writables
 	//m["locations"] = vl.vid2location
+	oversized := []string{}
+	for k, v := range vl.oversizedVolumes {
+		if v {
+			oversized = append(oversized, k.String())
+		}
+	}
+	m["oversized"] = oversized
+
 	return m
 }

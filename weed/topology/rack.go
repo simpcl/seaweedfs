@@ -2,11 +2,13 @@ package topology
 
 import (
 	"strconv"
+	"sync"
 	"time"
 )
 
 type Rack struct {
 	NodeImpl
+	mut sync.Mutex
 }
 
 func NewRack(id string) *Rack {
@@ -28,6 +30,8 @@ func (r *Rack) FindDataNode(ip string, port int) *DataNode {
 	return nil
 }
 func (r *Rack) GetOrCreateDataNode(ip string, port int, publicUrl string, maxVolumeCount int) *DataNode {
+	r.mut.Lock()
+	defer r.mut.Unlock()
 	for _, c := range r.Children() {
 		dn := c.(*DataNode)
 		if dn.MatchLocation(ip, port) {

@@ -1,7 +1,10 @@
 package topology
 
+import "sync"
+
 type DataCenter struct {
 	NodeImpl
+	mut sync.Mutex
 }
 
 func NewDataCenter(id string) *DataCenter {
@@ -14,6 +17,8 @@ func NewDataCenter(id string) *DataCenter {
 }
 
 func (dc *DataCenter) GetOrCreateRack(rackName string) *Rack {
+	dc.mut.Lock()
+	defer dc.mut.Unlock()
 	for _, c := range dc.Children() {
 		rack := c.(*Rack)
 		if string(rack.Id()) == rackName {

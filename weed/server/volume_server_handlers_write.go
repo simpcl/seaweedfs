@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"weed/glog"
@@ -32,9 +33,19 @@ func (vs *VolumeServer) PostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var overwrite = true
+	if strings.EqualFold(r.Method, "POST") {
+		overwrite = false
+	} else if strings.EqualFold(r.Method, "PUT") {
+		overwrite = true
+	} else {
+		writeJsonError(w, r, http.StatusBadRequest, errors.New("Wrong http method"))
+		return
+	}
+
 	ret := operation.UploadResult{}
 	size, errorStatus := topology.ReplicatedWrite(vs.GetMaster(),
-		vs.store, volumeId, needle, r)
+		vs.store, volumeId, needle, r, overwrite)
 	httpStatus := http.StatusCreated
 	if errorStatus != "" {
 		httpStatus = http.StatusInternalServerError

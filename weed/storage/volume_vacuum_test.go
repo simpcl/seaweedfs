@@ -1,10 +1,10 @@
 package storage
 
 import (
-	"testing"
-	"os"
 	"io/ioutil"
 	"math/rand"
+	"os"
+	"testing"
 )
 
 /*
@@ -121,7 +121,7 @@ func TestCompaction(t *testing.T) {
 }
 func doSomeWritesDeletes(i int, v *Volume, t *testing.T, infos []*needleInfo) {
 	n := newRandomNeedle(uint64(i))
-	size, err := v.writeNeedle(n)
+	size, err := v.writeNeedle(n, false)
 	if err != nil {
 		t.Fatalf("write file %d: %v", i, err)
 	}

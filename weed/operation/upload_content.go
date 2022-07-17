@@ -37,12 +37,18 @@ func init() {
 var fileNameEscaper = strings.NewReplacer("\\", "\\\\", "\"", "\\\"")
 
 func Upload(uploadUrl string, filename string, reader io.Reader, isGzipped bool, mtype string, pairMap map[string]string, jwt security.EncodedJwt) (*UploadResult, error) {
-	return upload_content(uploadUrl, func(w io.Writer) (err error) {
+	return upload_content(uploadUrl, "POST", func(w io.Writer) (err error) {
 		_, err = io.Copy(w, reader)
 		return
 	}, filename, isGzipped, mtype, pairMap, jwt)
 }
-func upload_content(uploadUrl string, fillBufferFunction func(w io.Writer) error, filename string, isGzipped bool, mtype string, pairMap map[string]string, jwt security.EncodedJwt) (*UploadResult, error) {
+func UploadWithPut(uploadUrl string, filename string, reader io.Reader, isGzipped bool, mtype string, pairMap map[string]string, jwt security.EncodedJwt) (*UploadResult, error) {
+	return upload_content(uploadUrl, "PUT", func(w io.Writer) (err error) {
+		_, err = io.Copy(w, reader)
+		return
+	}, filename, isGzipped, mtype, pairMap, jwt)
+}
+func upload_content(uploadUrl string, method string, fillBufferFunction func(w io.Writer) error, filename string, isGzipped bool, mtype string, pairMap map[string]string, jwt security.EncodedJwt) (*UploadResult, error) {
 	body_buf := bytes.NewBufferString("")
 	body_writer := multipart.NewWriter(body_buf)
 	h := make(textproto.MIMEHeader)
@@ -75,7 +81,7 @@ func upload_content(uploadUrl string, fillBufferFunction func(w io.Writer) error
 		return nil, err
 	}
 
-	req, postErr := http.NewRequest("POST", uploadUrl, body_buf)
+	req, postErr := http.NewRequest(method, uploadUrl, body_buf)
 	if postErr != nil {
 		glog.V(0).Infoln("failing to upload to", uploadUrl, postErr.Error())
 		return nil, postErr

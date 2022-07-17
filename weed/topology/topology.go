@@ -3,6 +3,7 @@ package topology
 import (
 	"errors"
 	"math/rand"
+	"sync"
 
 	"weed/glog"
 	"weed/sequence"
@@ -28,6 +29,8 @@ type Topology struct {
 	Configuration *Configuration
 
 	RaftServer raft.Server
+
+	mut sync.Mutex
 }
 
 func NewTopology(id string, seq sequence.Sequencer, volumeSizeLimit uint64, pulse int) *Topology {
@@ -136,6 +139,8 @@ func (t *Topology) UnRegisterVolumeLayout(v storage.VolumeInfo, dn *DataNode) {
 }
 
 func (t *Topology) GetOrCreateDataCenter(dcName string) *DataCenter {
+	t.mut.Lock()
+	defer t.mut.Unlock()
 	for _, c := range t.Children() {
 		dc := c.(*DataCenter)
 		if string(dc.Id()) == dcName {
