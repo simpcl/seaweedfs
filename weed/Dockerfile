@@ -24,10 +24,13 @@ ARG PROJECT_NAME=seaweedfs
 ARG OUTPUT_PATH=/src/bin
 
 COPY --from=go-builder ${OUTPUT_PATH}/${PROJECT_NAME} /usr/local/bin/${PROJECT_NAME}
-COPY --from=go-builder ${KEY_PATH} /usr/local/lib/jwt-private.key
 
 RUN adduser -D ${PROJECT_NAME}
 USER ${PROJECT_NAME}
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 USER root
 
 # ENTRYPOINT ["/usr/local/bin/zk-cluster-operator -c=/cloud-md-zk-config/config.yaml"]
