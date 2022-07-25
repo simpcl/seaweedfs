@@ -9,7 +9,6 @@ require (
 	github.com/golang/protobuf v1.3.5
 	github.com/google/btree v1.1.2
 	github.com/gorilla/mux v1.8.0
-	github.com/hashicorp/golang-lru v0.5.4
 	github.com/klauspost/crc32 v1.2.0
 	github.com/soheilhy/cmux v0.1.5
 	github.com/syndtr/goleveldb v1.0.0
