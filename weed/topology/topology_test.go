@@ -109,9 +109,21 @@ func setup(topologyLayout string) *Topology {
 	return topo
 }
 
+func TestRemoveDataCenter(t *testing.T) {
+	topo := setup(topologyLayout)
+	topo.UnlinkChildNode(NodeId("dc2"))
+	if topo.GetActiveVolumeCount() != 15 {
+		t.Fail()
+	}
+	topo.UnlinkChildNode(NodeId("dc3"))
+	if topo.GetActiveVolumeCount() != 12 {
+		t.Fail()
+	}
+}
+
 func TestFindEmptySlotsForOneVolume(t *testing.T) {
 	topo := setup(topologyLayout)
-	vg := NewDefaultVolumeGrowth()
+	//vg := NewDefaultVolumeGrowth()
 	rp, _ := storage.NewReplicaPlacementFromString("002")
 	volumeGrowOption := &VolumeGrowOption{
 		Collection:       "",
@@ -120,7 +132,7 @@ func TestFindEmptySlotsForOneVolume(t *testing.T) {
 		Rack:             "",
 		DataNode:         "",
 	}
-	servers, err := vg.findEmptySlotsForOneVolume(topo, volumeGrowOption)
+	servers, err := topo.FindEmptySlotsForOneVolume(volumeGrowOption)
 	if err != nil {
 		fmt.Println("finding empty slots error :", err)
 		t.Fail()
