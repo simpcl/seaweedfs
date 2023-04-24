@@ -1,18 +1,21 @@
 #!/bin/sh
 
+export HOST=`hostname -s`
+export DOMAIN=`hostname -d`
+
 case "$1" in
 
   'master')
-  	ARGS="-ip `hostname -i` -mdir /data"
+  	ARGS="-ip ${HOST}.${DOMAIN} -mdir /data"
 	# Is this instance linked with an other master? (Docker commandline "--link master1:master")
-	if [ -n "$MASTER_PORT_9333_TCP_ADDR" ] ; then
-		ARGS="$ARGS -peers=$MASTER_PORT_9333_TCP_ADDR:$MASTER_PORT_9333_TCP_PORT"
+	if [ -n "$MASTER_PEERS" ] ; then
+		ARGS="$ARGS -peers=$MASTER_PEERS"
 	fi
   	exec /usr/bin/weed $@ $ARGS
 	;;
 
   'volume')
-  	ARGS="-ip `hostname -i` -dir /data"
+  	ARGS="-ip ${HOST}.${DOMAIN} -dir /data"
 	# Is this instance linked with a master? (Docker commandline "--link master1:master")
   	if [ -n "$MASTER_PORT_9333_TCP_ADDR" ] ; then
 		ARGS="$ARGS -mserver=$MASTER_PORT_9333_TCP_ADDR:$MASTER_PORT_9333_TCP_PORT"
@@ -21,7 +24,7 @@ case "$1" in
 	;;
 
   'server')
-  	ARGS="-ip `hostname -i` -dir /data"
+  	ARGS="-ip ${HOST}.${DOMAIN} -dir /data"
   	if [ -n "$MASTER_PORT_9333_TCP_ADDR" ] ; then
 		ARGS="$ARGS -master.peers=$MASTER_PORT_9333_TCP_ADDR:$MASTER_PORT_9333_TCP_PORT"
 	fi
