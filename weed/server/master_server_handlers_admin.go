@@ -156,7 +156,7 @@ func (ms *MasterServer) getVolumeGrowOption(r *http.Request) (*topology.VolumeGr
 		Collection:       r.FormValue("collection"),
 		ReplicaPlacement: replicaPlacement,
 		Ttl:              ttl,
-		Prealloacte:      preallocate,
+		Preallocate:      preallocate,
 		DataCenter:       r.FormValue("dataCenter"),
 		Rack:             r.FormValue("rack"),
 		DataNode:         r.FormValue("dataNode"),
