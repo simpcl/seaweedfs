@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"weed/glog"
+	"weed/operation"
 	"weed/storage"
 )
 
@@ -20,7 +21,7 @@ type VolumeGrowOption struct {
 	Collection       string
 	ReplicaPlacement *storage.ReplicaPlacement
 	Ttl              *storage.TTL
-	Prealloacte      int64
+	Preallocate      int64
 	DataCenter       string
 	Rack             string
 	DataNode         string
@@ -87,7 +88,7 @@ func (vg *VolumeGrowth) findAndGrow(topo *Topology, option *VolumeGrowOption) (i
 
 func (vg *VolumeGrowth) grow(topo *Topology, vid storage.VolumeId, option *VolumeGrowOption, servers ...*DataNode) error {
 	for _, server := range servers {
-		if err := AllocateVolume(server, vid, option); err == nil {
+		if err := operation.AllocateVolume(server.String(), vid.String(), option.Collection, option.ReplicaPlacement.String(), option.Ttl.String(), option.Preallocate); err == nil {
 			vi := storage.VolumeInfo{
 				Id:               vid,
 				Size:             0,
