@@ -54,11 +54,13 @@ func (ms *MasterServer) volumeGrowHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err == nil {
+		ms.vgLock.Lock()
+		defer ms.vgLock.Unlock()
 		if count, err = strconv.Atoi(r.FormValue("count")); err == nil {
 			if ms.Topo.FreeSpace() < count*option.ReplicaPlacement.GetCopyCount() {
 				err = errors.New("Only " + strconv.Itoa(ms.Topo.FreeSpace()) + " volumes left! Not enough for " + strconv.Itoa(count*option.ReplicaPlacement.GetCopyCount()))
 			} else {
-				count, err = ms.vg.GrowByCountAndType(count, option, ms.Topo)
+				count, err = ms.GrowVolumesByCount(count, option)
 			}
 		} else {
 			err = errors.New("parameter count is not found")
@@ -127,12 +129,12 @@ func (ms *MasterServer) deleteFromMasterServerHandler(w http.ResponseWriter, r *
 	}
 }
 
-func (ms *MasterServer) HasWritableVolume(option *topology.VolumeGrowOption) bool {
+func (ms *MasterServer) HasWritableVolume(option *topology.VolumeOption) bool {
 	vl := ms.Topo.GetVolumeLayout(option.Collection, option.ReplicaPlacement, option.Ttl)
 	return vl.GetActiveVolumeCount(option) > 0
 }
 
-func (ms *MasterServer) getVolumeGrowOption(r *http.Request) (*topology.VolumeGrowOption, error) {
+func (ms *MasterServer) getVolumeGrowOption(r *http.Request) (*topology.VolumeOption, error) {
 	replicationString := r.FormValue("replication")
 	if replicationString == "" {
 		replicationString = ms.defaultReplicaPlacement
@@ -152,7 +154,7 @@ func (ms *MasterServer) getVolumeGrowOption(r *http.Request) (*topology.VolumeGr
 			return nil, fmt.Errorf("Failed to parse int64 preallocate = %s: %v", r.FormValue("preallocate"), err)
 		}
 	}
-	volumeGrowOption := &topology.VolumeGrowOption{
+	option := &topology.VolumeOption{
 		Collection:       r.FormValue("collection"),
 		ReplicaPlacement: replicaPlacement,
 		Ttl:              ttl,
@@ -161,5 +163,5 @@ func (ms *MasterServer) getVolumeGrowOption(r *http.Request) (*topology.VolumeGr
 		Rack:             r.FormValue("rack"),
 		DataNode:         r.FormValue("dataNode"),
 	}
-	return volumeGrowOption, nil
+	return option, nil
 }
