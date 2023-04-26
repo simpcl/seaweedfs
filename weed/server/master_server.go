@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"weed/glog"
+	"weed/operation"
 	"weed/security"
 	"weed/sequence"
+	"weed/storage"
 	"weed/topology"
 	"weed/util"
 
@@ -30,7 +32,6 @@ type MasterServer struct {
 	guard                   *security.Guard
 
 	Topo   *topology.Topology
-	vg     *topology.VolumeGrowth
 	vgLock sync.Mutex
 
 	bounedLeaderChan chan int
@@ -61,7 +62,6 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 	ms.bounedLeaderChan = make(chan int, 16)
 	seq := sequence.NewMemorySequencer()
 	ms.Topo = topology.NewTopology("topo", seq, uint64(volumeSizeLimitMB)*1024*1024)
-	ms.vg = topology.NewDefaultVolumeGrowth()
 	glog.V(0).Infoln("Volume Size Limit is", volumeSizeLimitMB, "MB")
 
 	ms.guard = security.NewGuard(whiteList, secureKey)
@@ -154,4 +154,71 @@ func (ms *MasterServer) StartRefreshWritableVolumes() {
 			}
 		}
 	}(ms.garbageThreshold)
+}
+
+// one replication type may need rp.GetCopyCount() actual volumes
+// given copyCount, how many logical volumes to create
+func calcVolumeCount(copyCount int) (count int) {
+	switch copyCount {
+	case 1:
+		count = 7
+	case 2:
+		count = 6
+	case 3:
+		count = 3
+	default:
+		count = 1
+	}
+	return
+}
+
+func (ms *MasterServer) AutomaticGrowVolumes(option *topology.VolumeOption) (count int, err error) {
+	count, err = ms.GrowVolumesByCount(calcVolumeCount(option.ReplicaPlacement.GetCopyCount()), option)
+	if count > 0 && count%option.ReplicaPlacement.GetCopyCount() == 0 {
+		return count, nil
+	}
+	return count, err
+}
+
+func (ms *MasterServer) GrowVolumesByCount(targetCount int, option *topology.VolumeOption) (counter int, err error) {
+	for i := 0; i < targetCount; i++ {
+		if c, e := ms.findAndGrow(option); e == nil {
+			counter += c
+		} else {
+			return counter, e
+		}
+	}
+	return
+}
+
+func (ms *MasterServer) findAndGrow(option *topology.VolumeOption) (int, error) {
+	servers, e := ms.Topo.FindEmptySlotsForOneVolume(option)
+	if e != nil {
+		return 0, e
+	}
+	vid := ms.Topo.NextVolumeId()
+	err := ms.grow(vid, option, servers...)
+	return len(servers), err
+}
+
+func (ms *MasterServer) grow(vid storage.VolumeId, option *topology.VolumeOption, servers ...*topology.DataNode) error {
+	for _, server := range servers {
+		if err := operation.AllocateVolume(server.String(), vid.String(), option.Collection, option.ReplicaPlacement.String(), option.Ttl.String(), option.Preallocate); err == nil {
+			vi := storage.VolumeInfo{
+				Id:               vid,
+				Size:             0,
+				Collection:       option.Collection,
+				ReplicaPlacement: option.ReplicaPlacement,
+				Ttl:              option.Ttl,
+				Version:          storage.CurrentVersion,
+			}
+			server.AddOrUpdateVolume(vi)
+			ms.Topo.RegisterVolumeLayout(vi, server)
+			glog.V(0).Infoln("Created Volume", vid, "on", server.NodeImpl.String())
+		} else {
+			glog.V(0).Infoln("Failed to assign volume", vid, "to", servers, "error", err)
+			return fmt.Errorf("Failed to assign %d: %v", vid, err)
+		}
+	}
+	return nil
 }

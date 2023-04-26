@@ -98,12 +98,12 @@ func (t *Topology) NextVolumeId() storage.VolumeId {
 	return next
 }
 
-func (t *Topology) HasWritableVolume(option *VolumeGrowOption) bool {
+func (t *Topology) HasWritableVolume(option *VolumeOption) bool {
 	vl := t.GetVolumeLayout(option.Collection, option.ReplicaPlacement, option.Ttl)
 	return vl.GetActiveVolumeCount(option) > 0
 }
 
-func (t *Topology) PickForWrite(count uint64, option *VolumeGrowOption) (string, uint64, *DataNode, error) {
+func (t *Topology) PickForWrite(count uint64, option *VolumeOption) (string, uint64, *DataNode, error) {
 	vid, count, datanodes, err := t.GetVolumeLayout(option.Collection, option.ReplicaPlacement, option.Ttl).PickForWrite(count, option)
 	if err != nil || datanodes.Length() == 0 {
 		return "", 0, nil, errors.New("No writable volumes available!")
@@ -188,7 +188,7 @@ func (t *Topology) UnRegisterDataNode(dn *DataNode) {
 // 2.2 collect all racks that have rp.SameRackCount+1
 // 2.2 collect all data centers that have DiffRackCount+rp.SameRackCount+1
 // 2. find rest data nodes
-func (t *Topology) FindEmptySlotsForOneVolume(option *VolumeGrowOption) (servers []*DataNode, err error) {
+func (t *Topology) FindEmptySlotsForOneVolume(option *VolumeOption) (servers []*DataNode, err error) {
 	//find main datacenter and other data centers
 	rp := option.ReplicaPlacement
 	mainDataCenter, otherDataCenters, dc_err := t.RandomlyPickNodes(rp.DiffDataCenterCount+1, func(node Node) error {

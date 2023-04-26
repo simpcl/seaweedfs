@@ -79,7 +79,7 @@ func setup(topologyLayout string) *Topology {
 	fmt.Println("data:", data)
 
 	//need to connect all nodes first before server adding volumes
-	topo := NewTopology("weedfs", sequence.NewMemorySequencer(), 32*1024, 5)
+	topo := NewTopology("weedfs", sequence.NewMemorySequencer(), 32*1024)
 	mTopology := data.(map[string]interface{})
 	for dcKey, dcValue := range mTopology {
 		dc := NewDataCenter(dcKey)
@@ -123,16 +123,15 @@ func TestRemoveDataCenter(t *testing.T) {
 
 func TestFindEmptySlotsForOneVolume(t *testing.T) {
 	topo := setup(topologyLayout)
-	//vg := NewDefaultVolumeGrowth()
 	rp, _ := storage.NewReplicaPlacementFromString("002")
-	volumeGrowOption := &VolumeGrowOption{
+	option := &VolumeOption{
 		Collection:       "",
 		ReplicaPlacement: rp,
 		DataCenter:       "dc1",
 		Rack:             "",
 		DataNode:         "",
 	}
-	servers, err := topo.FindEmptySlotsForOneVolume(volumeGrowOption)
+	servers, err := topo.FindEmptySlotsForOneVolume(option)
 	if err != nil {
 		fmt.Println("finding empty slots error :", err)
 		t.Fail()
