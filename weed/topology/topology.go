@@ -34,14 +34,13 @@ type Topology struct {
 	mut sync.Mutex
 }
 
-func NewTopology(id string, seq sequence.Sequencer, volumeSizeLimit uint64, pulse int) *Topology {
+func NewTopology(id string, seq sequence.Sequencer, volumeSizeLimit uint64) *Topology {
 	t := &Topology{}
 	t.id = NodeId(id)
 	t.nodeType = "Topology"
 	t.NodeImpl.value = t
 	t.children = make(map[NodeId]Node)
 	t.collectionMap = util.NewConcurrentReadMap()
-	t.pulse = int64(pulse)
 	t.volumeSizeLimit = volumeSizeLimit
 
 	t.Sequence = seq
@@ -151,6 +150,37 @@ func (t *Topology) GetOrCreateDataCenter(dcName string) *DataCenter {
 	dc := NewDataCenter(dcName)
 	t.LinkChildNode(dc)
 	return dc
+}
+
+func (t *Topology) CheckFullVolumes() {
+	t.CollectDeadNodeAndFullVolumes(t.volumeSizeLimit)
+}
+
+func (t *Topology) SetVolumeCapacityFull(volumeInfo storage.VolumeInfo) bool {
+	vl := t.GetVolumeLayout(volumeInfo.Collection, volumeInfo.ReplicaPlacement, volumeInfo.Ttl)
+	if !vl.SetVolumeCapacityFull(volumeInfo.Id) {
+		return false
+	}
+	for _, dn := range vl.vid2location[volumeInfo.Id].list {
+		if !volumeInfo.ReadOnly {
+			dn.UpAdjustActiveVolumeCountDelta(-1)
+		}
+	}
+	return true
+}
+
+func (t *Topology) UnRegisterDataNode(dn *DataNode) {
+	for _, v := range dn.GetVolumes() {
+		glog.V(0).Infoln("Removing Volume", v.Id, "from the dead volume server", dn.Id())
+		vl := t.GetVolumeLayout(v.Collection, v.ReplicaPlacement, v.Ttl)
+		vl.SetVolumeUnavailable(dn, v.Id)
+	}
+	dn.UpAdjustVolumeCountDelta(-dn.GetVolumeCount())
+	dn.UpAdjustActiveVolumeCountDelta(-dn.GetActiveVolumeCount())
+	dn.UpAdjustMaxVolumeCountDelta(-dn.GetMaxVolumeCount())
+	if dn.Parent() != nil {
+		dn.Parent().UnlinkChildNode(dn.Id())
+	}
 }
 
 // 1. find the main data node
