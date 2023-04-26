@@ -2,10 +2,12 @@ package weed_server
 
 import (
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"sync"
+	"time"
 
 	"weed/glog"
 	"weed/security"
@@ -58,7 +60,7 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 	}
 	ms.bounedLeaderChan = make(chan int, 16)
 	seq := sequence.NewMemorySequencer()
-	ms.Topo = topology.NewTopology("topo", seq, uint64(volumeSizeLimitMB)*1024*1024, pulseSeconds)
+	ms.Topo = topology.NewTopology("topo", seq, uint64(volumeSizeLimitMB)*1024*1024)
 	ms.vg = topology.NewDefaultVolumeGrowth()
 	glog.V(0).Infoln("Volume Size Limit is", volumeSizeLimitMB, "MB")
 
@@ -81,7 +83,7 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 	r.HandleFunc("/stats/memory", ms.guard.WhiteList(statsMemoryHandler))
 	r.HandleFunc("/{fileId}", ms.proxyToLeader(ms.redirectHandler))
 
-	ms.Topo.StartRefreshWritableVolumes(garbageThreshold, ms.preallocate)
+	ms.StartRefreshWritableVolumes()
 
 	return ms
 }
@@ -133,4 +135,23 @@ func (ms *MasterServer) proxyToLeader(f func(w http.ResponseWriter, r *http.Requ
 			//writeJsonError(w, r, errors.New(ms.Topo.RaftServer.Name()+" does not know Leader yet:"+ms.Topo.RaftServer.Leader()))
 		}
 	}
+}
+
+func (ms *MasterServer) StartRefreshWritableVolumes() {
+	go func() {
+		for {
+			if ms.Topo.IsLeader() {
+				ms.Topo.CheckFullVolumes()
+			}
+			time.Sleep(time.Duration(float32(ms.pulseSeconds*1e3)*(1+rand.Float32())) * time.Millisecond)
+		}
+	}()
+	go func(garbageThreshold string) {
+		c := time.Tick(15 * time.Minute)
+		for _ = range c {
+			if ms.Topo.IsLeader() {
+				ms.Topo.Vacuum(garbageThreshold, ms.preallocate)
+			}
+		}
+	}(ms.garbageThreshold)
 }

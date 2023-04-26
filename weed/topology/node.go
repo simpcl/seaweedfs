@@ -28,7 +28,7 @@ type Node interface {
 	SetParent(Node)
 	LinkChildNode(node Node)
 	UnlinkChildNode(nodeId NodeId)
-	CollectDeadNodeAndFullVolumes(freshThreshHold int64, volumeSizeLimit uint64)
+	CollectDeadNodeAndFullVolumes(volumeSizeLimit uint64)
 
 	IsDataNode() bool
 	IsRack() bool
@@ -238,20 +238,20 @@ func (n *NodeImpl) UnlinkChildNode(nodeId NodeId) {
 	}
 }
 
-func (n *NodeImpl) CollectDeadNodeAndFullVolumes(freshThreshHold int64, volumeSizeLimit uint64) {
+func (n *NodeImpl) CollectDeadNodeAndFullVolumes(volumeSizeLimit uint64) {
 	if n.IsRack() {
 		for _, c := range n.Children() {
 			dn := c.(*DataNode) //can not cast n to DataNode
 			for _, v := range dn.GetVolumes() {
 				if uint64(v.Size) >= volumeSizeLimit {
 					//fmt.Println("volume",v.Id,"size",v.Size,">",volumeSizeLimit)
-					n.GetTopology().chanFullVolumes <- v
+					n.GetTopology().SetVolumeCapacityFull(v)
 				}
 			}
 		}
 	} else {
 		for _, c := range n.Children() {
-			c.CollectDeadNodeAndFullVolumes(freshThreshHold, volumeSizeLimit)
+			c.CollectDeadNodeAndFullVolumes(volumeSizeLimit)
 		}
 	}
 }
