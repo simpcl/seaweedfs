@@ -2,6 +2,7 @@ package weed_server
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"weed/glog"
+	"weed/storage"
 	"weed/topology"
 
 	"github.com/chrislusf/raft"
@@ -39,7 +41,7 @@ func NewRaftServer(r *mux.Router, peers []string, httpAddr string, dataDir strin
 		raft.SetLogLevel(2)
 	}
 
-	raft.RegisterCommand(&topology.MaxVolumeIdCommand{})
+	raft.RegisterCommand(&MaxVolumeIdCommand{})
 
 	var err error
 	transporter := raft.NewHTTPTransporter("/cluster", 0)
@@ -87,7 +89,51 @@ func NewRaftServer(r *mux.Router, peers []string, httpAddr string, dataDir strin
 
 	glog.V(0).Infof("current cluster leader: %v", s.raftServer.Leader())
 
+	s.raftServer.AddEventListener(raft.LeaderChangeEventType, func(e raft.Event) {
+		glog.V(0).Infof("event: %+v", e)
+		if s.raftServer.Leader() != "" {
+			glog.V(0).Infoln("[", s.raftServer.Name(), "]", s.raftServer.Leader(), "becomes leader.")
+		}
+	})
+	if s.IsLeader() {
+		glog.V(0).Infoln("[", s.raftServer.Name(), "]", "I am the leader!")
+	} else {
+		if s.raftServer.Leader() != "" {
+			glog.V(0).Infoln("[", s.raftServer.Name(), "]", s.raftServer.Leader(), "is the leader.")
+		}
+	}
+
 	return s
+}
+
+func (s *RaftServer) NextVolumeId() storage.VolumeId {
+	vid := s.topo.GetMaxVolumeId()
+	next := vid.Next()
+	go s.raftServer.Do(NewMaxVolumeIdCommand(next))
+	return next
+}
+
+func (s *RaftServer) IsLeader() bool {
+	if leader, e := s.Leader(); e == nil {
+		return leader == s.raftServer.Name()
+	}
+	return false
+}
+
+func (s *RaftServer) Leader() (string, error) {
+	l := ""
+	if s.raftServer != nil {
+		l = s.raftServer.Leader()
+	} else {
+		return "", errors.New("Raft Server not ready yet!")
+	}
+
+	if l == "" {
+		// We are a single node cluster, we are the leader
+		return s.raftServer.Name(), errors.New("Raft Server not initialized!")
+	}
+
+	return l, nil
 }
 
 func (s *RaftServer) Peers() (members []string) {
@@ -125,5 +171,4 @@ func isPeersChanged(dir string, self string, peers []string) (oldPeers []string,
 	sort.Strings(oldPeers)
 
 	return oldPeers, !reflect.DeepEqual(peers, oldPeers)
-
 }

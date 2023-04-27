@@ -109,10 +109,10 @@ func (ms *MasterServer) selfUrl(r *http.Request) string {
 	return "localhost:" + strconv.Itoa(ms.port)
 }
 func (ms *MasterServer) submitFromMasterServerHandler(w http.ResponseWriter, r *http.Request) {
-	if ms.Topo.IsLeader() {
+	if ms.raftServer.IsLeader() {
 		submitForClientHandler(w, r, ms.selfUrl(r))
 	} else {
-		masterUrl, err := ms.Topo.Leader()
+		masterUrl, err := ms.raftServer.Leader()
 		if err != nil {
 			writeJsonError(w, r, http.StatusInternalServerError, err)
 		} else {
@@ -122,10 +122,12 @@ func (ms *MasterServer) submitFromMasterServerHandler(w http.ResponseWriter, r *
 }
 
 func (ms *MasterServer) deleteFromMasterServerHandler(w http.ResponseWriter, r *http.Request) {
-	if ms.Topo.IsLeader() {
+	if ms.raftServer.IsLeader() {
 		deleteForClientHandler(w, r, ms.selfUrl(r))
+	} else if masterUrl, err := ms.raftServer.Leader(); err == nil {
+		deleteForClientHandler(w, r, masterUrl)
 	} else {
-		deleteForClientHandler(w, r, ms.Topo.RaftServer.Leader())
+		writeJsonError(w, r, http.StatusInternalServerError, err)
 	}
 }
 

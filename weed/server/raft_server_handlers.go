@@ -12,10 +12,10 @@ func (s *RaftServer) HandleFunc(pattern string, handler func(http.ResponseWriter
 
 func (s *RaftServer) statusHandler(w http.ResponseWriter, r *http.Request) {
 	ret := operation.ClusterStatusResult{
-		IsLeader: s.topo.IsLeader(),
+		IsLeader: s.IsLeader(),
 		Peers:    s.Peers(),
 	}
-	if leader, e := s.topo.Leader(); e == nil {
+	if leader, e := s.Leader(); e == nil {
 		ret.Leader = leader
 	}
 	writeJsonQuiet(w, r, http.StatusOK, ret)

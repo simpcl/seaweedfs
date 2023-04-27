@@ -10,8 +10,6 @@ import (
 	"weed/sequence"
 	"weed/storage"
 	"weed/util"
-
-	"github.com/chrislusf/raft"
 )
 
 type Topology struct {
@@ -28,8 +26,6 @@ type Topology struct {
 	chanFullVolumes chan storage.VolumeInfo
 
 	Configuration *Configuration
-
-	RaftServer raft.Server
 
 	mut sync.Mutex
 }
@@ -52,29 +48,6 @@ func NewTopology(id string, seq sequence.Sequencer, volumeSizeLimit uint64) *Top
 	return t
 }
 
-func (t *Topology) IsLeader() bool {
-	if leader, e := t.Leader(); e == nil {
-		return leader == t.RaftServer.Name()
-	}
-	return false
-}
-
-func (t *Topology) Leader() (string, error) {
-	l := ""
-	if t.RaftServer != nil {
-		l = t.RaftServer.Leader()
-	} else {
-		return "", errors.New("Raft Server not ready yet!")
-	}
-
-	if l == "" {
-		// We are a single node cluster, we are the leader
-		return t.RaftServer.Name(), errors.New("Raft Server not initialized!")
-	}
-
-	return l, nil
-}
-
 func (t *Topology) Lookup(collection string, vid storage.VolumeId) []*DataNode {
 	//maybe an issue if lots of collections?
 	if collection == "" {
@@ -89,13 +62,6 @@ func (t *Topology) Lookup(collection string, vid storage.VolumeId) []*DataNode {
 		}
 	}
 	return nil
-}
-
-func (t *Topology) NextVolumeId() storage.VolumeId {
-	vid := t.GetMaxVolumeId()
-	next := vid.Next()
-	go t.RaftServer.Do(NewMaxVolumeIdCommand(next))
-	return next
 }
 
 func (t *Topology) HasWritableVolume(option *VolumeOption) bool {
