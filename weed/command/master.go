@@ -93,8 +93,7 @@ func runMaster(cmd *Command, args []string) bool {
 		if *masterPeers != "" {
 			peers = strings.Split(*masterPeers, ",")
 		}
-		raftServer := weed_server.NewRaftServer(r, peers, myMasterAddress, *metaFolder, ms.Topo, *mpulse)
-		ms.SetRaftServer(raftServer)
+		ms.InitRaftServer(r, peers, myMasterAddress)
 	}()
 
 	// start grpc and http server

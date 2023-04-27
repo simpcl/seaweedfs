@@ -162,8 +162,7 @@ func runServer(cmd *Command, args []string) bool {
 			if *serverPeers != "" {
 				peers = strings.Split(*serverPeers, ",")
 			}
-			raftServer := weed_server.NewRaftServer(r, peers, myAddress, *masterMetaFolder, ms.Topo, *volumePulse)
-			ms.SetRaftServer(raftServer)
+			ms.InitRaftServer(r, peers, myAddress)
 			volumeWait.Done()
 		}()
 

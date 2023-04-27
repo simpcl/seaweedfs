@@ -17,7 +17,6 @@ import (
 	"weed/topology"
 	"weed/util"
 
-	"github.com/chrislusf/raft"
 	"github.com/gorilla/mux"
 )
 
@@ -35,6 +34,8 @@ type MasterServer struct {
 	vgLock sync.Mutex
 
 	bounedLeaderChan chan int
+
+	raftServer *RaftServer
 }
 
 func NewMasterServer(r *mux.Router, port int, metaFolder string,
@@ -53,6 +54,7 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 	}
 	ms := &MasterServer{
 		port:                    port,
+		metaFolder:              metaFolder,
 		volumeSizeLimitMB:       volumeSizeLimitMB,
 		preallocate:             preallocateSize,
 		pulseSeconds:            pulseSeconds,
@@ -88,37 +90,27 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 	return ms
 }
 
-func (ms *MasterServer) SetRaftServer(raftServer *RaftServer) {
-	ms.Topo.RaftServer = raftServer.raftServer
-	ms.Topo.RaftServer.AddEventListener(raft.LeaderChangeEventType, func(e raft.Event) {
-		glog.V(0).Infof("event: %+v", e)
-		if ms.Topo.RaftServer.Leader() != "" {
-			glog.V(0).Infoln("[", ms.Topo.RaftServer.Name(), "]", ms.Topo.RaftServer.Leader(), "becomes leader.")
-		}
-	})
-	if ms.Topo.IsLeader() {
-		glog.V(0).Infoln("[", ms.Topo.RaftServer.Name(), "]", "I am the leader!")
-	} else {
-		if ms.Topo.RaftServer.Leader() != "" {
-			glog.V(0).Infoln("[", ms.Topo.RaftServer.Name(), "]", ms.Topo.RaftServer.Leader(), "is the leader.")
-		}
+func (ms *MasterServer) InitRaftServer(r *mux.Router, peers []string, httpAddr string) {
+	ms.raftServer = NewRaftServer(r, peers, httpAddr, ms.metaFolder, ms.Topo, ms.pulseSeconds)
+	if ms.raftServer == nil {
+		glog.Fatalf("Master startup error: can not create the raft server")
 	}
 }
 
 func (ms *MasterServer) proxyToLeader(f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if ms.Topo.IsLeader() {
+		if ms.raftServer.IsLeader() {
 			f(w, r)
-		} else if ms.Topo.RaftServer != nil && ms.Topo.RaftServer.Leader() != "" {
+		} else if leader, e := ms.raftServer.Leader(); e == nil {
 			ms.bounedLeaderChan <- 1
 			defer func() { <-ms.bounedLeaderChan }()
-			targetUrl, err := url.Parse("http://" + ms.Topo.RaftServer.Leader())
+			targetUrl, err := url.Parse("http://" + leader)
 			if err != nil {
 				writeJsonError(w, r, http.StatusInternalServerError,
-					fmt.Errorf("Leader URL http://%s Parse Error: %v", ms.Topo.RaftServer.Leader(), err))
+					fmt.Errorf("Leader URL http://%s Parse Error: %v", leader, err))
 				return
 			}
-			glog.V(4).Infoln("proxying to leader", ms.Topo.RaftServer.Leader())
+			glog.V(4).Infoln("proxying to leader", leader)
 			proxy := httputil.NewSingleHostReverseProxy(targetUrl)
 			director := proxy.Director
 			proxy.Director = func(req *http.Request) {
@@ -140,7 +132,7 @@ func (ms *MasterServer) proxyToLeader(f func(w http.ResponseWriter, r *http.Requ
 func (ms *MasterServer) StartRefreshWritableVolumes() {
 	go func() {
 		for {
-			if ms.Topo.IsLeader() {
+			if ms.raftServer.IsLeader() {
 				ms.Topo.CheckFullVolumes()
 			}
 			time.Sleep(time.Duration(float32(ms.pulseSeconds*1e3)*(1+rand.Float32())) * time.Millisecond)
@@ -149,7 +141,7 @@ func (ms *MasterServer) StartRefreshWritableVolumes() {
 	go func(garbageThreshold string) {
 		c := time.Tick(15 * time.Minute)
 		for _ = range c {
-			if ms.Topo.IsLeader() {
+			if ms.raftServer.IsLeader() {
 				ms.Topo.Vacuum(garbageThreshold, ms.preallocate)
 			}
 		}
@@ -196,7 +188,7 @@ func (ms *MasterServer) findAndGrow(option *topology.VolumeOption) (int, error) 
 	if e != nil {
 		return 0, e
 	}
-	vid := ms.Topo.NextVolumeId()
+	vid := ms.raftServer.NextVolumeId()
 	err := ms.grow(vid, option, servers...)
 	return len(servers), err
 }
