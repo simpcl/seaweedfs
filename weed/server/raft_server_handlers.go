@@ -6,11 +6,11 @@ import (
 	"weed/operation"
 )
 
-func (s *RaftServer) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
+func (s *GoRaftServer) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
 	s.router.HandleFunc(pattern, handler)
 }
 
-func (s *RaftServer) statusHandler(w http.ResponseWriter, r *http.Request) {
+func (s *GoRaftServer) statusHandler(w http.ResponseWriter, r *http.Request) {
 	ret := operation.ClusterStatusResult{
 		IsLeader: s.IsLeader(),
 		Peers:    s.Peers(),

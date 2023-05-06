@@ -35,7 +35,7 @@ type MasterServer struct {
 
 	bounedLeaderChan chan int
 
-	raftServer *RaftServer
+	raftServer RaftServer
 }
 
 func NewMasterServer(r *mux.Router, port int, metaFolder string,
@@ -68,8 +68,8 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 
 	ms.guard = security.NewGuard(whiteList, secureKey)
 
-	r.HandleFunc("/", ms.uiStatusHandler)
-	r.HandleFunc("/ui/index.html", ms.uiStatusHandler)
+	//r.HandleFunc("/", ms.uiStatusHandler)
+	//r.HandleFunc("/ui/index.html", ms.uiStatusHandler)
 	r.HandleFunc("/dir/assign", ms.proxyToLeader(ms.guard.WhiteList(ms.dirAssignHandler)))
 	r.HandleFunc("/dir/lookup", ms.proxyToLeader(ms.guard.WhiteList(ms.dirLookupHandler)))
 	r.HandleFunc("/dir/status", ms.proxyToLeader(ms.guard.WhiteList(ms.dirStatusHandler)))
@@ -95,6 +95,12 @@ func (ms *MasterServer) InitRaftServer(r *mux.Router, peers []string, httpAddr s
 	if ms.raftServer == nil {
 		glog.Fatalf("Master startup error: can not create the raft server")
 	}
+
+	ms.raftServer.LeaderChangeTrigger(func(newLeader string) {
+		if currentLeader, _ := ms.raftServer.Leader(); currentLeader != "" {
+			glog.V(0).Infof("%+v is the new leader", newLeader)
+		}
+	})
 }
 
 func (ms *MasterServer) proxyToLeader(f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
@@ -124,7 +130,7 @@ func (ms *MasterServer) proxyToLeader(f func(w http.ResponseWriter, r *http.Requ
 			proxy.ServeHTTP(w, r)
 		} else {
 			//drop it to the floor
-			//writeJsonError(w, r, errors.New(ms.Topo.RaftServer.Name()+" does not know Leader yet:"+ms.Topo.RaftServer.Leader()))
+			//writeJsonError(w, r, errors.New(ms.Topo.GoRaftServer.Name()+" does not know Leader yet:"+ms.Topo.GoRaftServer.Leader()))
 		}
 	}
 }
@@ -188,9 +194,16 @@ func (ms *MasterServer) findAndGrow(option *topology.VolumeOption) (int, error) 
 	if e != nil {
 		return 0, e
 	}
-	vid := ms.raftServer.NextVolumeId()
+	vid := ms.NextVolumeId()
 	err := ms.grow(vid, option, servers...)
 	return len(servers), err
+}
+
+func (ms *MasterServer) NextVolumeId() storage.VolumeId {
+	vid := ms.Topo.GetMaxVolumeId()
+	next := vid.Next()
+	ms.raftServer.Apply(NewMaxVolumeIdCommand(next))
+	return next
 }
 
 func (ms *MasterServer) grow(vid storage.VolumeId, option *topology.VolumeOption, servers ...*topology.DataNode) error {
