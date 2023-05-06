@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"weed/operation"
 
 	"weed/glog"
 	"weed/storage"
@@ -166,4 +167,15 @@ func (ms *MasterServer) getVolumeGrowOption(r *http.Request) (*topology.VolumeOp
 		DataNode:         r.FormValue("dataNode"),
 	}
 	return option, nil
+}
+
+func (ms *MasterServer) statusHandler(w http.ResponseWriter, r *http.Request) {
+	ret := operation.ClusterStatusResult{
+		IsLeader: ms.raftServer.IsLeader(),
+		Peers:    ms.raftServer.Peers(),
+	}
+	if leader, e := ms.raftServer.Leader(); e == nil {
+		ret.Leader = leader
+	}
+	writeJsonQuiet(w, r, http.StatusOK, ret)
 }

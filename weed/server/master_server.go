@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"sync"
 	"time"
+	"weed/raft"
 
 	"weed/glog"
 	"weed/operation"
@@ -35,7 +36,7 @@ type MasterServer struct {
 
 	bounedLeaderChan chan int
 
-	raftServer *RaftServer
+	raftServer raft.RaftServer
 }
 
 func NewMasterServer(r *mux.Router, port int, metaFolder string,
@@ -68,8 +69,8 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 
 	ms.guard = security.NewGuard(whiteList, secureKey)
 
-	r.HandleFunc("/", ms.uiStatusHandler)
-	r.HandleFunc("/ui/index.html", ms.uiStatusHandler)
+	//r.HandleFunc("/", ms.uiStatusHandler)
+	//r.HandleFunc("/ui/index.html", ms.uiStatusHandler)
 	r.HandleFunc("/dir/assign", ms.proxyToLeader(ms.guard.WhiteList(ms.dirAssignHandler)))
 	r.HandleFunc("/dir/lookup", ms.proxyToLeader(ms.guard.WhiteList(ms.dirLookupHandler)))
 	r.HandleFunc("/dir/status", ms.proxyToLeader(ms.guard.WhiteList(ms.dirStatusHandler)))
@@ -84,17 +85,25 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 	r.HandleFunc("/stats/counter", ms.guard.WhiteList(statsCounterHandler))
 	r.HandleFunc("/stats/memory", ms.guard.WhiteList(statsMemoryHandler))
 	r.HandleFunc("/{fileId}", ms.proxyToLeader(ms.redirectHandler))
+	r.HandleFunc("/cluster/status", ms.statusHandler).Methods("GET")
 
 	ms.StartRefreshWritableVolumes()
 
 	return ms
 }
 
-func (ms *MasterServer) InitRaftServer(r *mux.Router, peers []string, httpAddr string) {
-	ms.raftServer = NewRaftServer(r, peers, httpAddr, ms.metaFolder, ms.Topo, ms.pulseSeconds)
+func (ms *MasterServer) InitRaftServer(r *mux.Router, option *raft.RaftServerOption) {
+
+	ms.raftServer = raft.NewGoRaftServer(r, option)
 	if ms.raftServer == nil {
 		glog.Fatalf("Master startup error: can not create the raft server")
 	}
+
+	ms.raftServer.LeaderChangeTrigger(func(newLeader string) {
+		if currentLeader, _ := ms.raftServer.Leader(); currentLeader != "" {
+			glog.V(0).Infof("%+v is the new leader", newLeader)
+		}
+	})
 }
 
 func (ms *MasterServer) proxyToLeader(f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
@@ -124,7 +133,7 @@ func (ms *MasterServer) proxyToLeader(f func(w http.ResponseWriter, r *http.Requ
 			proxy.ServeHTTP(w, r)
 		} else {
 			//drop it to the floor
-			//writeJsonError(w, r, errors.New(ms.Topo.RaftServer.Name()+" does not know Leader yet:"+ms.Topo.RaftServer.Leader()))
+			//writeJsonError(w, r, errors.New(ms.Topo.GoRaftServer.Name()+" does not know Leader yet:"+ms.Topo.GoRaftServer.Leader()))
 		}
 	}
 }
@@ -132,7 +141,7 @@ func (ms *MasterServer) proxyToLeader(f func(w http.ResponseWriter, r *http.Requ
 func (ms *MasterServer) StartRefreshWritableVolumes() {
 	go func() {
 		for {
-			if ms.raftServer.IsLeader() {
+			if ms.raftServer != nil && ms.raftServer.IsLeader() {
 				ms.Topo.CheckFullVolumes()
 			}
 			time.Sleep(time.Duration(float32(ms.pulseSeconds*1e3)*(1+rand.Float32())) * time.Millisecond)
@@ -188,14 +197,21 @@ func (ms *MasterServer) findAndGrow(option *topology.VolumeOption) (int, error) 
 	if e != nil {
 		return 0, e
 	}
-	vid := ms.raftServer.NextVolumeId()
+	vid := ms.NextVolumeId()
 	err := ms.grow(vid, option, servers...)
 	return len(servers), err
 }
 
+func (ms *MasterServer) NextVolumeId() storage.VolumeId {
+	vid := ms.Topo.GetMaxVolumeId()
+	next := vid.Next()
+	ms.raftServer.Apply(raft.NewMaxVolumeIdCommand(next))
+	return next
+}
+
 func (ms *MasterServer) grow(vid storage.VolumeId, option *topology.VolumeOption, servers ...*topology.DataNode) error {
 	for _, server := range servers {
-		if err := operation.AllocateVolume(server.String(), vid.String(), option.Collection, option.ReplicaPlacement.String(), option.Ttl.String(), option.Preallocate); err == nil {
+		if err := operation.AllocateVolume(server.Url(), vid.String(), option.Collection, option.ReplicaPlacement.String(), option.Ttl.String(), option.Preallocate); err == nil {
 			vi := storage.VolumeInfo{
 				Id:               vid,
 				Size:             0,
