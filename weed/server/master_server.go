@@ -195,7 +195,7 @@ func (ms *MasterServer) findAndGrow(option *topology.VolumeOption) (int, error) 
 
 func (ms *MasterServer) grow(vid storage.VolumeId, option *topology.VolumeOption, servers ...*topology.DataNode) error {
 	for _, server := range servers {
-		if err := operation.AllocateVolume(server.String(), vid.String(), option.Collection, option.ReplicaPlacement.String(), option.Ttl.String(), option.Preallocate); err == nil {
+		if err := operation.AllocateVolume(server.Url(), vid.String(), option.Collection, option.ReplicaPlacement.String(), option.Ttl.String(), option.Preallocate); err == nil {
 			vi := storage.VolumeInfo{
 				Id:               vid,
 				Size:             0,

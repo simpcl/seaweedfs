@@ -22,7 +22,7 @@ func AllocateVolume(dataNode string, volumeId string, collection string, replica
 	values.Add("preallocate", fmt.Sprintf("%d", preallocate))
 	jsonBlob, err := util.Post("http://"+dataNode+"/admin/assign_volume", values)
 	if err != nil {
-		return err
+		return fmt.Errorf("Post %s error: %w", dataNode, err)
 	}
 	var ret AllocateVolumeResult
 	if err := json.Unmarshal(jsonBlob, &ret); err != nil {
