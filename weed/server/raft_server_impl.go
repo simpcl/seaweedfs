@@ -15,8 +15,8 @@ import (
 	"weed/glog"
 	"weed/topology"
 
-	"github.com/chrislusf/raft"
 	"github.com/gorilla/mux"
+	"github.com/seaweedfs/raft"
 )
 
 type GoRaftServer struct {

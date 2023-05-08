@@ -8,7 +8,7 @@ import (
 	"weed/storage"
 	"weed/topology"
 
-	"github.com/chrislusf/raft"
+	"github.com/seaweedfs/raft"
 )
 
 type MaxVolumeIdCommand struct {
