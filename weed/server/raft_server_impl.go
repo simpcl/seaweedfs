@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"weed/pb"
 
 	"weed/glog"
 	"weed/topology"
@@ -20,21 +21,21 @@ import (
 )
 
 type GoRaftServer struct {
-	peers      []string // initial peers to join with
+	peers      map[string]pb.ServerAddress // initial peers to join with
 	raftServer raft.Server
 	dataDir    string
-	httpAddr   string
+	serverAddr pb.ServerAddress
 	router     *mux.Router
 	topo       *topology.Topology
 }
 
-func NewRaftServer(r *mux.Router, peers []string, httpAddr string, dataDir string, topo *topology.Topology, pulseSeconds int) *GoRaftServer {
+func NewGoRaftServer(r *mux.Router, option *RaftServerOption) *GoRaftServer {
 	s := &GoRaftServer{
-		peers:    peers,
-		httpAddr: httpAddr,
-		dataDir:  dataDir,
-		router:   r,
-		topo:     topo,
+		peers:      option.Peers,
+		serverAddr: option.ServerAddr,
+		dataDir:    option.DataDir,
+		topo:       option.Topo,
+		router:     r,
 	}
 
 	if glog.V(4) {
@@ -46,17 +47,21 @@ func NewRaftServer(r *mux.Router, peers []string, httpAddr string, dataDir strin
 	var err error
 	transporter := raft.NewHTTPTransporter("/cluster", 0)
 	transporter.Transport.MaxIdleConnsPerHost = 1024
-	glog.V(0).Infof("Starting GoRaftServer with %v", httpAddr)
+	glog.V(0).Infof("Starting GoRaftServer with %v", option.ServerAddr)
 
-	// Clear old cluster configurations if peers are changed
-	if oldPeers, changed := isPeersChanged(s.dataDir, httpAddr, s.peers); changed {
-		glog.V(0).Infof("Peers Change: %v => %v", oldPeers, s.peers)
+	// always clear previous log to avoid server is promotable
+	os.RemoveAll(path.Join(s.dataDir, "log"))
+	if !option.RaftResumeState {
+		// always clear previous metadata
 		os.RemoveAll(path.Join(s.dataDir, "conf"))
-		os.RemoveAll(path.Join(s.dataDir, "log"))
 		os.RemoveAll(path.Join(s.dataDir, "snapshot"))
 	}
+	if err = os.MkdirAll(path.Join(s.dataDir, "snapshot"), os.ModePerm); err != nil {
+		glog.V(0).Infoln(err)
+		return nil
+	}
 
-	s.raftServer, err = raft.NewServer(s.httpAddr, s.dataDir, transporter, nil, topo, "")
+	s.raftServer, err = raft.NewServer(string(s.serverAddr), s.dataDir, transporter, nil, option.Topo, "")
 	if err != nil {
 		glog.V(0).Infoln(err)
 		return nil
@@ -64,13 +69,13 @@ func NewRaftServer(r *mux.Router, peers []string, httpAddr string, dataDir strin
 	transporter.Install(s.raftServer, s)
 	heartbeatInterval := time.Duration(float64(400*time.Millisecond) * (rand.Float64()*0.25 + 1))
 	s.raftServer.SetHeartbeatInterval(heartbeatInterval)
-	s.raftServer.SetElectionTimeout(time.Duration(pulseSeconds) * 500 * time.Millisecond)
+	s.raftServer.SetElectionTimeout(option.ElectionTimeout)
 	s.raftServer.Start()
 
 	s.router.HandleFunc("/cluster/status", s.statusHandler).Methods("GET")
 
-	for _, peer := range s.peers {
-		if err = s.raftServer.AddPeer(peer, "http://"+peer); err != nil {
+	for name, peer := range s.peers {
+		if err = s.raftServer.AddPeer(name, "http://"+peer.ToHttpAddress()); err != nil {
 			glog.V(0).Infoln(err)
 		}
 	}
@@ -82,7 +87,7 @@ func NewRaftServer(r *mux.Router, peers []string, httpAddr string, dataDir strin
 
 		_, err := s.raftServer.Do(&raft.DefaultJoinCommand{
 			Name:             s.raftServer.Name(),
-			ConnectionString: "http://" + s.httpAddr,
+			ConnectionString: "http://" + s.serverAddr.ToHttpAddress(),
 		})
 
 		if err != nil {
