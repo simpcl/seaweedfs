@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"weed/raft"
 
 	"weed/glog"
 	"weed/pb/master_pb"
@@ -157,13 +158,23 @@ func runServer(cmd *Command, args []string) bool {
 		go func() {
 			raftWaitForMaster.Wait()
 			time.Sleep(100 * time.Millisecond)
-			myAddress := *serverIp + ":" + strconv.Itoa(*masterPort)
-			var peers []string
-			if *serverPeers != "" {
-				peers = strings.Split(*serverPeers, ",")
+			myMasterAddress, peers := checkPeers(*serverIp, *masterPort, *serverPeers)
+			mPeers := make(map[string]util.ServerAddress)
+			for _, peer := range peers {
+				mPeers[string(peer)] = peer
 			}
-			raftServer := weed_server.NewRaftServer(r, peers, myAddress, *masterMetaFolder, ms.Topo, *volumePulse)
-			ms.SetRaftServer(raftServer)
+
+			raftServerOption := &raft.RaftServerOption{
+				Peers:             mPeers,
+				ServerAddr:        myMasterAddress,
+				DataDir:           *metaFolder,
+				Topo:              ms.Topo,
+				RaftResumeState:   *raftResumeState,
+				HeartbeatInterval: *heartbeatInterval,
+				ElectionTimeout:   *electionTimeout,
+				RaftBootstrap:     *raftBootstrap,
+			}
+			ms.InitRaftServer(r, raftServerOption)
 			volumeWait.Done()
 		}()
 

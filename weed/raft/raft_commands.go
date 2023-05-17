@@ -1,10 +1,14 @@
-package topology
+package raft
 
 import (
+	"encoding/json"
+	"fmt"
+	hashicorpRaft "github.com/hashicorp/raft"
 	"weed/glog"
 	"weed/storage"
+	"weed/topology"
 
-	"github.com/chrislusf/raft"
+	"github.com/seaweedfs/raft"
 )
 
 type MaxVolumeIdCommand struct {
@@ -22,11 +26,27 @@ func (c *MaxVolumeIdCommand) CommandName() string {
 }
 
 func (c *MaxVolumeIdCommand) Apply(server raft.Server) (interface{}, error) {
-	topo := server.Context().(*Topology)
+	topo := server.Context().(*topology.Topology)
 	before := topo.GetMaxVolumeId()
 	topo.UpAdjustMaxVolumeId(c.MaxVolumeId)
 
 	glog.V(0).Infoln("max volume id", before, "==>", topo.GetMaxVolumeId())
 
 	return nil, nil
+}
+
+func (c *MaxVolumeIdCommand) Persist(sink hashicorpRaft.SnapshotSink) error {
+	b, err := json.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("marshal: %v", err)
+	}
+	_, err = sink.Write(b)
+	if err != nil {
+		sink.Cancel()
+		return fmt.Errorf("sink.Write(): %v", err)
+	}
+	return sink.Close()
+}
+
+func (c *MaxVolumeIdCommand) Release() {
 }

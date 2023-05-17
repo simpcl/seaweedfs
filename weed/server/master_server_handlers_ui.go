@@ -2,12 +2,10 @@ package weed_server
 
 import (
 	"net/http"
-
-	ui "weed/server/master_ui"
+	"weed/raft"
+	ui "weed/server/volume_server_ui"
 	"weed/stats"
 	"weed/util"
-
-	"github.com/chrislusf/raft"
 )
 
 func (ms *MasterServer) uiStatusHandler(w http.ResponseWriter, r *http.Request) {
@@ -16,13 +14,13 @@ func (ms *MasterServer) uiStatusHandler(w http.ResponseWriter, r *http.Request) 
 	args := struct {
 		Version    string
 		Topology   interface{}
-		RaftServer raft.Server
+		RaftServer raft.RaftServer
 		Stats      map[string]interface{}
 		Counters   *stats.ServerStats
 	}{
 		util.VERSION,
 		ms.Topo.ToMap(),
-		ms.Topo.RaftServer,
+		ms.raftServer,
 		infos,
 		serverStats,
 	}

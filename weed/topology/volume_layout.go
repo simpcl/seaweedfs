@@ -127,7 +127,7 @@ func (vl *VolumeLayout) ListVolumeServers() (nodes []*DataNode) {
 	return
 }
 
-func (vl *VolumeLayout) PickForWrite(count uint64, option *VolumeGrowOption) (*storage.VolumeId, uint64, *VolumeLocationList, error) {
+func (vl *VolumeLayout) PickForWrite(count uint64, option *VolumeOption) (*storage.VolumeId, uint64, *VolumeLocationList, error) {
 	vl.accessLock.RLock()
 	defer vl.accessLock.RUnlock()
 
@@ -167,7 +167,7 @@ func (vl *VolumeLayout) PickForWrite(count uint64, option *VolumeGrowOption) (*s
 	return &vid, count, locationList, nil
 }
 
-func (vl *VolumeLayout) GetActiveVolumeCount(option *VolumeGrowOption) int {
+func (vl *VolumeLayout) GetActiveVolumeCount(option *VolumeOption) int {
 	vl.accessLock.RLock()
 	defer vl.accessLock.RUnlock()
 
