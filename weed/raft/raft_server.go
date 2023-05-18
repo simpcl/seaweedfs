@@ -2,7 +2,7 @@ package raft
 
 import (
 	"errors"
-	"google.golang.org/grpc"
+	transport "github.com/Jille/raft-grpc-transport"
 	"time"
 	"weed/topology"
 	"weed/util"
@@ -53,14 +53,15 @@ func newFuture() *Future {
 }
 
 type RaftServerOption struct {
-	GrpcDialOption grpc.DialOption
-	Peers          map[string]util.ServerAddress
-	ServerAddr     util.ServerAddress
-	DataDir        string
-	Topo           *topology.Topology
-	// RaftResumeState is used for goRaft
-	RaftResumeState   bool
-	HeartbeatInterval time.Duration
-	ElectionTimeout   time.Duration
-	RaftBootstrap     bool
+	Peers      map[string]util.ServerAddress
+	ServerAddr util.ServerAddress
+	DataDir    string
+	Topo       *topology.Topology
+	// RaftResumeState is only used for goRaft
+	RaftResumeState      bool
+	HeartbeatInterval    time.Duration
+	ElectionTimeout      time.Duration
+	RaftBootstrap        bool
+	IsHashicorpRaft      bool
+	HashicorpTransporter *transport.Manager
 }

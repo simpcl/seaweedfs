@@ -1,16 +1,20 @@
 package command
 
 import (
+	"fmt"
+	transport "github.com/Jille/raft-grpc-transport"
+	hashicorpRaft "github.com/hashicorp/raft"
+	"google.golang.org/grpc/credentials/insecure"
 	"net/http"
 	"os"
+	"path"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
-	"weed/raft"
-
 	"weed/glog"
 	"weed/pb/master_pb"
+	"weed/raft"
 	weed_server "weed/server"
 	"weed/util"
 
@@ -55,6 +59,7 @@ var (
 	heartbeatInterval = cmdMaster.Flag.Duration("heartbeatInterval", 300*time.Millisecond, "heartbeat interval of master servers, and will be randomly multiplied by [1, 1.25)")
 	electionTimeout   = cmdMaster.Flag.Duration("electionTimeout", 10*time.Second, "election timeout of master servers")
 	raftBootstrap     = cmdMaster.Flag.Bool("raftBootstrap", false, "Whether to bootstrap the Raft cluster")
+	raftHashicorp     = cmdMaster.Flag.Bool("raftHashicorp", false, "use hashicorp raft")
 
 	masterWhiteList []string
 )
@@ -92,44 +97,59 @@ func runMaster(cmd *Command, args []string) bool {
 		glog.Fatalf("Master startup error: %v", e)
 	}
 
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-
-		myMasterAddress, peers := checkPeers(*masterIp, *mport, *masterPeers)
-		mPeers := make(map[string]util.ServerAddress)
-		for _, peer := range peers {
-			mPeers[string(peer)] = peer
-		}
-
-		raftServerOption := &raft.RaftServerOption{
-			Peers:             mPeers,
-			ServerAddr:        myMasterAddress,
-			DataDir:           *metaFolder,
-			Topo:              ms.Topo,
-			RaftResumeState:   *raftResumeState,
-			HeartbeatInterval: *heartbeatInterval,
-			ElectionTimeout:   *electionTimeout,
-			RaftBootstrap:     *raftBootstrap,
-		}
-		ms.InitRaftServer(r, raftServerOption)
-	}()
-
 	// start grpc and http server
 	m := cmux.New(listener)
 
 	grpcL := m.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
 	httpL := m.Match(cmux.Any())
+	grpcH, e := util.NewListener(util.ServerAddress(listeningAddress).ToGrpcAddress(), 0)
+	if e != nil {
+		glog.Fatalf("Master startup error: %v", e)
+	}
 
 	// Create your protocol servers.
 	grpcS := grpc.NewServer()
 	master_pb.RegisterSeaweedServer(grpcS, ms)
 	reflection.Register(grpcS)
 
+	myMasterAddress, peers := checkPeers(*masterIp, *mport, *masterPeers)
+	mPeers := make(map[string]util.ServerAddress)
+	for _, peer := range peers {
+		mPeers[string(peer)] = peer
+	}
+
+	metaDir := path.Join(*metaFolder, fmt.Sprintf("%s_%d", *masterIp, *mport))
+	raftServerOption := &raft.RaftServerOption{
+		Peers:             mPeers,
+		ServerAddr:        myMasterAddress,
+		DataDir:           metaDir,
+		Topo:              ms.Topo,
+		RaftResumeState:   *raftResumeState,
+		HeartbeatInterval: *heartbeatInterval,
+		ElectionTimeout:   *electionTimeout,
+		RaftBootstrap:     *raftBootstrap,
+		IsHashicorpRaft:   *raftHashicorp,
+	}
+
+	if *raftHashicorp {
+		// todo: we are not introducing the grpc dial option for now
+		raftServerOption.HashicorpTransporter = transport.New(hashicorpRaft.ServerAddress(myMasterAddress),
+			[]grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())})
+		raftServerOption.HashicorpTransporter.Register(grpcS)
+	}
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		ms.InitRaftServer(r, raftServerOption)
+	}()
+
 	httpS := &http.Server{Handler: r}
 
 	go grpcS.Serve(grpcL)
+	go grpcS.Serve(grpcH)
 	go httpS.Serve(httpL)
 
+	glog.V(0).Infoln("Master init finished, start to serve", util.VERSION, "at", listeningAddress)
 	if err := m.Serve(); err != nil {
 		glog.Fatalf("master server failed to serve: %v", err)
 	}
