@@ -5,6 +5,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"weed/glog"
 	"weed/util"
 )
 
@@ -91,6 +92,31 @@ func (sa ServerAddresses) ToAddressStrings() (addresses []string) {
 		addresses = append(addresses, address)
 	}
 	return
+}
+
+func hostAndPort(address string) (host string, port uint64, err error) {
+	colonIndex := strings.LastIndex(address, ":")
+	if colonIndex < 0 {
+		return "", 0, fmt.Errorf("server should have hostname:port format: %v", address)
+	}
+	port, err = strconv.ParseUint(address[colonIndex+1:], 10, 64)
+	if err != nil {
+		return "", 0, fmt.Errorf("server port parse error: %v", err)
+	}
+
+	return address[:colonIndex], port, err
+}
+
+func ServerToGrpcAddress(server string) (serverGrpcAddress string) {
+
+	host, port, parseErr := hostAndPort(server)
+	if parseErr != nil {
+		glog.Fatalf("server address %s parse error: %v", server, parseErr)
+	}
+
+	grpcPort := int(port) + 10000
+
+	return util.JoinHostPort(host, grpcPort)
 }
 
 func ToAddressStrings(addresses []ServerAddress) []string {
