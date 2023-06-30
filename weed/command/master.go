@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"weed/pb"
 
 	"weed/glog"
 	"weed/pb/master_pb"
@@ -96,7 +95,7 @@ func runMaster(cmd *Command, args []string) bool {
 		time.Sleep(100 * time.Millisecond)
 
 		myMasterAddress, peers := checkPeers(*masterIp, *mport, *masterPeers)
-		mPeers := make(map[string]pb.ServerAddress)
+		mPeers := make(map[string]util.ServerAddress)
 		for _, peer := range peers {
 			mPeers[string(peer)] = peer
 		}
@@ -137,10 +136,10 @@ func runMaster(cmd *Command, args []string) bool {
 	return true
 }
 
-func checkPeers(masterIp string, masterPort int, peers string) (masterAddress pb.ServerAddress, cleanedPeers []pb.ServerAddress) {
+func checkPeers(masterIp string, masterPort int, peers string) (masterAddress util.ServerAddress, cleanedPeers []util.ServerAddress) {
 	glog.V(0).Infof("current: %s:%d peers:%s", masterIp, masterPort, peers)
-	masterAddress = pb.NewServerAddress(masterIp, masterPort, 0)
-	cleanedPeers = pb.ServerAddresses(peers).ToAddresses()
+	masterAddress = util.NewServerAddress(masterIp, masterPort, 0)
+	cleanedPeers = util.FromStringToSAs(peers)
 
 	hasSelf := false
 	for _, peer := range cleanedPeers {

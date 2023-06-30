@@ -2,10 +2,11 @@ package weed_server
 
 import (
 	"errors"
-	"google.golang.org/grpc"
 	"time"
-	"weed/pb"
 	"weed/topology"
+	"weed/util"
+
+	"google.golang.org/grpc"
 )
 
 var ErrNotImplement = errors.New("raft server has not implement")
@@ -59,8 +60,8 @@ func newFuture() *Future {
 
 type RaftServerOption struct {
 	GrpcDialOption grpc.DialOption
-	Peers          map[string]pb.ServerAddress
-	ServerAddr     pb.ServerAddress
+	Peers          map[string]util.ServerAddress
+	ServerAddr     util.ServerAddress
 	DataDir        string
 	Topo           *topology.Topology
 	// RaftResumeState is used for goRaft

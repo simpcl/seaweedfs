@@ -1,4 +1,4 @@
-package pb
+package util
 
 import (
 	"fmt"
@@ -6,17 +6,15 @@ import (
 	"strconv"
 	"strings"
 	"weed/glog"
-	"weed/util"
 )
 
 type ServerAddress string
-type ServerAddresses string
 
 func NewServerAddress(host string, port int, grpcPort int) ServerAddress {
 	if grpcPort == 0 || grpcPort == port+10000 {
-		return ServerAddress(util.JoinHostPort(host, port))
+		return ServerAddress(JoinHostPort(host, port))
 	}
-	return ServerAddress(util.JoinHostPort(host, port) + "." + strconv.Itoa(grpcPort))
+	return ServerAddress(JoinHostPort(host, port) + "." + strconv.Itoa(grpcPort))
 }
 
 func NewServerAddressWithGrpcPort(address string, grpcPort int) ServerAddress {
@@ -68,28 +66,20 @@ func (sa ServerAddress) ToGrpcAddress() string {
 	return ServerToGrpcAddress(string(sa))
 }
 
-func (sa ServerAddresses) ToAddresses() (addresses []ServerAddress) {
-	parts := strings.Split(string(sa), ",")
+func FromStringsToSAs(strings []string) []ServerAddress {
+	var addresses []ServerAddress
+	for _, addr := range strings {
+		addresses = append(addresses, ServerAddress(addr))
+	}
+	return addresses
+}
+
+func FromStringToSAs(sas string) (addresses []ServerAddress) {
+	parts := strings.Split(sas, ",")
 	for _, address := range parts {
 		if address != "" {
 			addresses = append(addresses, ServerAddress(address))
 		}
-	}
-	return
-}
-
-func (sa ServerAddresses) ToAddressMap() (addresses map[string]ServerAddress) {
-	addresses = make(map[string]ServerAddress)
-	for _, address := range sa.ToAddresses() {
-		addresses[string(address)] = address
-	}
-	return
-}
-
-func (sa ServerAddresses) ToAddressStrings() (addresses []string) {
-	parts := strings.Split(string(sa), ",")
-	for _, address := range parts {
-		addresses = append(addresses, address)
 	}
 	return
 }
@@ -116,29 +106,7 @@ func ServerToGrpcAddress(server string) (serverGrpcAddress string) {
 
 	grpcPort := int(port) + 10000
 
-	return util.JoinHostPort(host, grpcPort)
-}
-
-func ToAddressStrings(addresses []ServerAddress) []string {
-	var strings []string
-	for _, addr := range addresses {
-		strings = append(strings, string(addr))
-	}
-	return strings
-}
-func ToAddressStringsFromMap(addresses map[string]ServerAddress) []string {
-	var strings []string
-	for _, addr := range addresses {
-		strings = append(strings, string(addr))
-	}
-	return strings
-}
-func FromAddressStrings(strings []string) []ServerAddress {
-	var addresses []ServerAddress
-	for _, addr := range strings {
-		addresses = append(addresses, ServerAddress(addr))
-	}
-	return addresses
+	return JoinHostPort(host, grpcPort)
 }
 
 func ParseUrl(input string) (address ServerAddress, path string, err error) {

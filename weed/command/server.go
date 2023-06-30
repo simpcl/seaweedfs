@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"weed/pb"
 
 	"weed/glog"
 	"weed/pb/master_pb"
@@ -159,7 +158,7 @@ func runServer(cmd *Command, args []string) bool {
 			raftWaitForMaster.Wait()
 			time.Sleep(100 * time.Millisecond)
 			myMasterAddress, peers := checkPeers(*serverIp, *masterPort, *serverPeers)
-			mPeers := make(map[string]pb.ServerAddress)
+			mPeers := make(map[string]util.ServerAddress)
 			for _, peer := range peers {
 				mPeers[string(peer)] = peer
 			}

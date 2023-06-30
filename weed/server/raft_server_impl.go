@@ -11,20 +11,20 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"weed/pb"
 
 	"weed/glog"
 	"weed/topology"
+	"weed/util"
 
 	"github.com/gorilla/mux"
 	"github.com/seaweedfs/raft"
 )
 
 type GoRaftServer struct {
-	peers      map[string]pb.ServerAddress // initial peers to join with
+	peers      map[string]util.ServerAddress // initial peers to join with
 	raftServer raft.Server
 	dataDir    string
-	serverAddr pb.ServerAddress
+	serverAddr util.ServerAddress
 	router     *mux.Router
 	topo       *topology.Topology
 }
