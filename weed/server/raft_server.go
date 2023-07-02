@@ -17,7 +17,7 @@ type RaftServer interface {
 	Leader() (string, error)
 	IsLeader() bool
 	LeaderChangeTrigger(func(newLeader string))
-	Apply(command Command) *Future
+	Apply(command Command) *util.Future
 	Peers() (members []string)
 }
 
@@ -29,33 +29,6 @@ type changeInfo struct {
 // Command represents an action to be taken on the replicated state machine.
 type Command interface {
 	CommandName() string
-}
-
-type Future struct {
-	doneCh chan error
-	err    error
-}
-
-func (g *Future) Complete() *Future {
-	if g.doneCh != nil {
-		<-g.doneCh
-	}
-	return g
-}
-
-func (g *Future) Error() error {
-	return g.err
-}
-
-func (g *Future) Done() *Future {
-	if g.doneCh != nil {
-		close(g.doneCh)
-	}
-	return g
-}
-
-func newFuture() *Future {
-	return &Future{doneCh: make(chan error)}
 }
 
 type RaftServerOption struct {

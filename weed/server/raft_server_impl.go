@@ -178,11 +178,11 @@ func isPeersChanged(dir string, self string, peers []string) (oldPeers []string,
 	return oldPeers, !reflect.DeepEqual(peers, oldPeers)
 }
 
-func (s *GoRaftServer) Apply(command Command) *Future {
-	f := newFuture()
+func (s *GoRaftServer) Apply(command Command) *util.Future {
+	f := util.NewFuture()
 	go func() {
 		_, err := s.raftServer.Do(command)
-		f.err = err
+		f.SetError(err)
 		f.Done()
 	}()
 	return f
