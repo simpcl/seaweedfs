@@ -91,7 +91,7 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 }
 
 func (ms *MasterServer) InitRaftServer(r *mux.Router, option *RaftServerOption) {
-
+	option.Context = ms.Topo
 	ms.raftServer = NewGoRaftServer(r, option)
 	if ms.raftServer == nil {
 		glog.Fatalf("Master startup error: can not create the raft server")

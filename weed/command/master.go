@@ -53,7 +53,6 @@ var (
 	raftResumeState   = cmdMaster.Flag.Bool("resumeState", false, "resume previous state on start master server")
 	heartbeatInterval = cmdMaster.Flag.Duration("heartbeatInterval", 300*time.Millisecond, "heartbeat interval of master servers, and will be randomly multiplied by [1, 1.25)")
 	electionTimeout   = cmdMaster.Flag.Duration("electionTimeout", 10*time.Second, "election timeout of master servers")
-	raftBootstrap     = cmdMaster.Flag.Bool("raftBootstrap", false, "Whether to bootstrap the Raft cluster")
 
 	masterWhiteList []string
 )
@@ -104,11 +103,9 @@ func runMaster(cmd *Command, args []string) bool {
 			Peers:             mPeers,
 			ServerAddr:        myMasterAddress,
 			DataDir:           *metaFolder,
-			Topo:              ms.Topo,
-			RaftResumeState:   *raftResumeState,
+			ResumeState:       *raftResumeState,
 			HeartbeatInterval: *heartbeatInterval,
 			ElectionTimeout:   *electionTimeout,
-			RaftBootstrap:     *raftBootstrap,
 		}
 		ms.InitRaftServer(r, raftServerOption)
 	}()

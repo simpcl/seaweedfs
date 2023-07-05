@@ -1,19 +1,14 @@
 package weed_server
 
 import (
-	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
-	"reflect"
-	"sort"
 	"strings"
 	"time"
 
 	"weed/glog"
-	"weed/topology"
 	"weed/util"
 
 	"github.com/gorilla/mux"
@@ -26,7 +21,6 @@ type GoRaftServer struct {
 	dataDir    string
 	serverAddr util.ServerAddress
 	router     *mux.Router
-	topo       *topology.Topology
 }
 
 func NewGoRaftServer(r *mux.Router, option *RaftServerOption) *GoRaftServer {
@@ -34,7 +28,6 @@ func NewGoRaftServer(r *mux.Router, option *RaftServerOption) *GoRaftServer {
 		peers:      option.Peers,
 		serverAddr: option.ServerAddr,
 		dataDir:    option.DataDir,
-		topo:       option.Topo,
 		router:     r,
 	}
 
@@ -51,7 +44,7 @@ func NewGoRaftServer(r *mux.Router, option *RaftServerOption) *GoRaftServer {
 
 	// always clear previous log to avoid server is promotable
 	os.RemoveAll(path.Join(s.dataDir, "log"))
-	if !option.RaftResumeState {
+	if !option.ResumeState {
 		// always clear previous metadata
 		os.RemoveAll(path.Join(s.dataDir, "conf"))
 		os.RemoveAll(path.Join(s.dataDir, "snapshot"))
@@ -61,7 +54,7 @@ func NewGoRaftServer(r *mux.Router, option *RaftServerOption) *GoRaftServer {
 		return nil
 	}
 
-	s.raftServer, err = raft.NewServer(string(s.serverAddr), s.dataDir, transporter, nil, option.Topo, "")
+	s.raftServer, err = raft.NewServer(string(s.serverAddr), s.dataDir, transporter, nil, option.Context, "")
 	if err != nil {
 		glog.V(0).Infoln(err)
 		return nil
@@ -149,33 +142,6 @@ func (s *GoRaftServer) Peers() (members []string) {
 	}
 
 	return
-}
-
-func isPeersChanged(dir string, self string, peers []string) (oldPeers []string, changed bool) {
-	confPath := path.Join(dir, "conf")
-	// open conf file
-	b, err := ioutil.ReadFile(confPath)
-	if err != nil {
-		return oldPeers, true
-	}
-	conf := &raft.Config{}
-	if err = json.Unmarshal(b, conf); err != nil {
-		return oldPeers, true
-	}
-
-	for _, p := range conf.Peers {
-		oldPeers = append(oldPeers, strings.TrimPrefix(p.ConnectionString, "http://"))
-	}
-	oldPeers = append(oldPeers, self)
-
-	if len(peers) == 0 && len(oldPeers) <= 1 {
-		return oldPeers, false
-	}
-
-	sort.Strings(peers)
-	sort.Strings(oldPeers)
-
-	return oldPeers, !reflect.DeepEqual(peers, oldPeers)
 }
 
 func (s *GoRaftServer) Apply(command Command) *util.Future {

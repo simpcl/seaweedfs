@@ -167,11 +167,9 @@ func runServer(cmd *Command, args []string) bool {
 				Peers:             mPeers,
 				ServerAddr:        myMasterAddress,
 				DataDir:           *metaFolder,
-				Topo:              ms.Topo,
-				RaftResumeState:   *raftResumeState,
+				ResumeState:       *raftResumeState,
 				HeartbeatInterval: *heartbeatInterval,
 				ElectionTimeout:   *electionTimeout,
-				RaftBootstrap:     *raftBootstrap,
 			}
 			ms.InitRaftServer(r, raftServerOption)
 			volumeWait.Done()
