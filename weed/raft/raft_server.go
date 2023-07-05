@@ -1,4 +1,4 @@
-package weed_server
+package raft
 
 import (
 	"time"

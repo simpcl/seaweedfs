@@ -1,8 +1,9 @@
-package weed_server
+package raft
 
 import (
 	"errors"
 	"math/rand"
+	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -23,7 +24,7 @@ type GoRaftServer struct {
 	router     *mux.Router
 }
 
-func NewGoRaftServer(r *mux.Router, option *RaftServerOption) *GoRaftServer {
+func NewGoRaftServer(r *mux.Router, option *RaftServerOption, command Command) *GoRaftServer {
 	s := &GoRaftServer{
 		peers:      option.Peers,
 		serverAddr: option.ServerAddr,
@@ -35,7 +36,7 @@ func NewGoRaftServer(r *mux.Router, option *RaftServerOption) *GoRaftServer {
 		raft.SetLogLevel(2)
 	}
 
-	raft.RegisterCommand(&MaxVolumeIdCommand{})
+	raft.RegisterCommand(command)
 
 	var err error
 	transporter := raft.NewHTTPTransporter("/cluster", 0)
@@ -64,8 +65,6 @@ func NewGoRaftServer(r *mux.Router, option *RaftServerOption) *GoRaftServer {
 	s.raftServer.SetHeartbeatInterval(heartbeatInterval)
 	s.raftServer.SetElectionTimeout(option.ElectionTimeout)
 	s.raftServer.Start()
-
-	s.router.HandleFunc("/cluster/status", s.statusHandler).Methods("GET")
 
 	for name, peer := range s.peers {
 		if err = s.raftServer.AddPeer(name, "http://"+peer.ToHttpAddress()); err != nil {
@@ -152,4 +151,8 @@ func (s *GoRaftServer) Apply(command Command) *util.Future {
 		f.Done()
 	}()
 	return f
+}
+
+func (s *GoRaftServer) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
+	s.router.HandleFunc(pattern, handler)
 }

@@ -11,6 +11,7 @@ import (
 
 	"weed/glog"
 	"weed/operation"
+	"weed/raft"
 	"weed/security"
 	"weed/sequence"
 	"weed/storage"
@@ -35,7 +36,7 @@ type MasterServer struct {
 
 	bounedLeaderChan chan int
 
-	raftServer RaftServer
+	raftServer raft.RaftServer
 }
 
 func NewMasterServer(r *mux.Router, port int, metaFolder string,
@@ -84,15 +85,16 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 	r.HandleFunc("/stats/counter", ms.guard.WhiteList(statsCounterHandler))
 	r.HandleFunc("/stats/memory", ms.guard.WhiteList(statsMemoryHandler))
 	r.HandleFunc("/{fileId}", ms.proxyToLeader(ms.redirectHandler))
+	r.HandleFunc("/cluster/status", ms.statusHandler).Methods("GET")
 
 	ms.StartRefreshWritableVolumes()
 
 	return ms
 }
 
-func (ms *MasterServer) InitRaftServer(r *mux.Router, option *RaftServerOption) {
+func (ms *MasterServer) InitRaftServer(r *mux.Router, option *raft.RaftServerOption) {
 	option.Context = ms.Topo
-	ms.raftServer = NewGoRaftServer(r, option)
+	ms.raftServer = raft.NewGoRaftServer(r, option, &MaxVolumeIdCommand{})
 	if ms.raftServer == nil {
 		glog.Fatalf("Master startup error: can not create the raft server")
 	}

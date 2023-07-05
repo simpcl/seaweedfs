@@ -10,6 +10,7 @@ import (
 
 	"weed/glog"
 	"weed/pb/master_pb"
+	"weed/raft"
 	weed_server "weed/server"
 	"weed/util"
 
@@ -99,7 +100,7 @@ func runMaster(cmd *Command, args []string) bool {
 			mPeers[string(peer)] = peer
 		}
 
-		raftServerOption := &weed_server.RaftServerOption{
+		raftServerOption := &raft.RaftServerOption{
 			Peers:             mPeers,
 			ServerAddr:        myMasterAddress,
 			DataDir:           *metaFolder,
