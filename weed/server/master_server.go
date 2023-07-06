@@ -132,7 +132,7 @@ func (ms *MasterServer) proxyToLeader(f func(w http.ResponseWriter, r *http.Requ
 func (ms *MasterServer) StartRefreshWritableVolumes() {
 	go func() {
 		for {
-			if ms.raftServer.IsLeader() {
+			if ms.raftServer != nil && ms.raftServer.IsLeader() {
 				ms.Topo.CheckFullVolumes()
 			}
 			time.Sleep(time.Duration(float32(ms.pulseSeconds*1e3)*(1+rand.Float32())) * time.Millisecond)
