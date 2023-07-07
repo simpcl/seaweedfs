@@ -1,10 +1,11 @@
-package topology
+package weed_server
 
 import (
 	"weed/glog"
 	"weed/storage"
+	"weed/topology"
 
-	"github.com/chrislusf/raft"
+	"github.com/seaweedfs/raft"
 )
 
 type MaxVolumeIdCommand struct {
@@ -22,7 +23,7 @@ func (c *MaxVolumeIdCommand) CommandName() string {
 }
 
 func (c *MaxVolumeIdCommand) Apply(server raft.Server) (interface{}, error) {
-	topo := server.Context().(*Topology)
+	topo := server.Context().(*topology.Topology)
 	before := topo.GetMaxVolumeId()
 	topo.UpAdjustMaxVolumeId(c.MaxVolumeId)
 

@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"weed/glog"
+	"weed/operation"
 	"weed/storage"
 	"weed/topology"
 	"weed/util"
@@ -54,11 +55,13 @@ func (ms *MasterServer) volumeGrowHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err == nil {
+		ms.vgLock.Lock()
+		defer ms.vgLock.Unlock()
 		if count, err = strconv.Atoi(r.FormValue("count")); err == nil {
 			if ms.Topo.FreeSpace() < count*option.ReplicaPlacement.GetCopyCount() {
 				err = errors.New("Only " + strconv.Itoa(ms.Topo.FreeSpace()) + " volumes left! Not enough for " + strconv.Itoa(count*option.ReplicaPlacement.GetCopyCount()))
 			} else {
-				count, err = ms.vg.GrowByCountAndType(count, option, ms.Topo)
+				count, err = ms.GrowVolumesByCount(count, option)
 			}
 		} else {
 			err = errors.New("parameter count is not found")
@@ -107,10 +110,10 @@ func (ms *MasterServer) selfUrl(r *http.Request) string {
 	return "localhost:" + strconv.Itoa(ms.port)
 }
 func (ms *MasterServer) submitFromMasterServerHandler(w http.ResponseWriter, r *http.Request) {
-	if ms.Topo.IsLeader() {
+	if ms.raftServer.IsLeader() {
 		submitForClientHandler(w, r, ms.selfUrl(r))
 	} else {
-		masterUrl, err := ms.Topo.Leader()
+		masterUrl, err := ms.raftServer.Leader()
 		if err != nil {
 			writeJsonError(w, r, http.StatusInternalServerError, err)
 		} else {
@@ -120,19 +123,21 @@ func (ms *MasterServer) submitFromMasterServerHandler(w http.ResponseWriter, r *
 }
 
 func (ms *MasterServer) deleteFromMasterServerHandler(w http.ResponseWriter, r *http.Request) {
-	if ms.Topo.IsLeader() {
+	if ms.raftServer.IsLeader() {
 		deleteForClientHandler(w, r, ms.selfUrl(r))
+	} else if masterUrl, err := ms.raftServer.Leader(); err == nil {
+		deleteForClientHandler(w, r, masterUrl)
 	} else {
-		deleteForClientHandler(w, r, ms.Topo.RaftServer.Leader())
+		writeJsonError(w, r, http.StatusInternalServerError, err)
 	}
 }
 
-func (ms *MasterServer) HasWritableVolume(option *topology.VolumeGrowOption) bool {
+func (ms *MasterServer) HasWritableVolume(option *topology.VolumeOption) bool {
 	vl := ms.Topo.GetVolumeLayout(option.Collection, option.ReplicaPlacement, option.Ttl)
 	return vl.GetActiveVolumeCount(option) > 0
 }
 
-func (ms *MasterServer) getVolumeGrowOption(r *http.Request) (*topology.VolumeGrowOption, error) {
+func (ms *MasterServer) getVolumeGrowOption(r *http.Request) (*topology.VolumeOption, error) {
 	replicationString := r.FormValue("replication")
 	if replicationString == "" {
 		replicationString = ms.defaultReplicaPlacement
@@ -152,14 +157,25 @@ func (ms *MasterServer) getVolumeGrowOption(r *http.Request) (*topology.VolumeGr
 			return nil, fmt.Errorf("Failed to parse int64 preallocate = %s: %v", r.FormValue("preallocate"), err)
 		}
 	}
-	volumeGrowOption := &topology.VolumeGrowOption{
+	option := &topology.VolumeOption{
 		Collection:       r.FormValue("collection"),
 		ReplicaPlacement: replicaPlacement,
 		Ttl:              ttl,
-		Prealloacte:      preallocate,
+		Preallocate:      preallocate,
 		DataCenter:       r.FormValue("dataCenter"),
 		Rack:             r.FormValue("rack"),
 		DataNode:         r.FormValue("dataNode"),
 	}
-	return volumeGrowOption, nil
+	return option, nil
+}
+
+func (ms *MasterServer) statusHandler(w http.ResponseWriter, r *http.Request) {
+	ret := operation.ClusterStatusResult{
+		IsLeader: ms.raftServer.IsLeader(),
+		Peers:    ms.raftServer.Peers(),
+	}
+	if leader, e := ms.raftServer.Leader(); e == nil {
+		ret.Leader = leader
+	}
+	writeJsonQuiet(w, r, http.StatusOK, ret)
 }

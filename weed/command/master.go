@@ -10,6 +10,7 @@ import (
 
 	"weed/glog"
 	"weed/pb/master_pb"
+	"weed/raft"
 	weed_server "weed/server"
 	"weed/util"
 
@@ -50,6 +51,10 @@ var (
 	masterCpuProfile      = cmdMaster.Flag.String("cpuprofile", "", "cpu profile output file")
 	masterMemProfile      = cmdMaster.Flag.String("memprofile", "", "memory profile output file")
 
+	raftResumeState   = cmdMaster.Flag.Bool("resumeState", false, "resume previous state on start master server")
+	heartbeatInterval = cmdMaster.Flag.Duration("heartbeatInterval", 300*time.Millisecond, "heartbeat interval of master servers, and will be randomly multiplied by [1, 1.25)")
+	electionTimeout   = cmdMaster.Flag.Duration("electionTimeout", 10*time.Second, "election timeout of master servers")
+
 	masterWhiteList []string
 )
 
@@ -88,20 +93,29 @@ func runMaster(cmd *Command, args []string) bool {
 
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		myMasterAddress := *masterIp + ":" + strconv.Itoa(*mport)
-		var peers []string
-		if *masterPeers != "" {
-			peers = strings.Split(*masterPeers, ",")
+
+		myMasterAddress, peers := checkPeers(*masterIp, *mport, *masterPeers)
+		mPeers := make(map[string]util.ServerAddress)
+		for _, peer := range peers {
+			mPeers[string(peer)] = peer
 		}
-		raftServer := weed_server.NewRaftServer(r, peers, myMasterAddress, *metaFolder, ms.Topo, *mpulse)
-		ms.SetRaftServer(raftServer)
+
+		raftServerOption := &raft.RaftServerOption{
+			Peers:             mPeers,
+			ServerAddr:        myMasterAddress,
+			DataDir:           *metaFolder,
+			ResumeState:       *raftResumeState,
+			HeartbeatInterval: *heartbeatInterval,
+			ElectionTimeout:   *electionTimeout,
+		}
+		ms.InitRaftServer(r, raftServerOption)
 	}()
 
 	// start grpc and http server
 	m := cmux.New(listener)
 
-	grpcL := m.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
-	httpL := m.Match(cmux.Any())
+	grpcL := m.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
+	httpL := m.Match(cmux.HTTP1Fast())
 
 	// Create your protocol servers.
 	grpcS := grpc.NewServer()
@@ -118,4 +132,26 @@ func runMaster(cmd *Command, args []string) bool {
 	}
 
 	return true
+}
+
+func checkPeers(masterIp string, masterPort int, peers string) (masterAddress util.ServerAddress, cleanedPeers []util.ServerAddress) {
+	glog.V(0).Infof("current: %s:%d peers:%s", masterIp, masterPort, peers)
+	masterAddress = util.NewServerAddress(masterIp, masterPort, 0)
+	cleanedPeers = util.FromStringToSAs(peers)
+
+	hasSelf := false
+	for _, peer := range cleanedPeers {
+		if peer.ToHttpAddress() == masterAddress.ToHttpAddress() {
+			hasSelf = true
+			break
+		}
+	}
+
+	if !hasSelf {
+		cleanedPeers = append(cleanedPeers, masterAddress)
+	}
+	if len(cleanedPeers)%2 == 0 {
+		glog.Fatalf("Only odd number of masters are supported: %+v", cleanedPeers)
+	}
+	return
 }
