@@ -8,14 +8,11 @@ var StatusTpl = template.Must(template.New("status").Parse(`<!DOCTYPE html>
 <html>
   <head>
     <title>SeaweedFS {{ .Version }}</title>
-	<link rel="icon" href="http://7viirv.com1.z0.glb.clouddn.com/seaweed_favicon.png" sizes="32x32" />  
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
   </head>
   <body>
     <div class="container">
       <div class="page-header">
 	    <h1>
-	      <img src="http://7viirv.com1.z0.glb.clouddn.com/seaweed50x50.png"></img>
           SeaweedFS <small>{{ .Version }}</small>
 	    </h1>
       </div>
@@ -36,13 +33,13 @@ var StatusTpl = template.Must(template.New("status").Parse(`<!DOCTYPE html>
               {{ with .RaftServer }}
               <tr>
                 <th>Leader</th>
-                <td><a href="http://{{ .Leader }}">{{ .Leader }}</a></td>
+                <td><a href="http://{{ .LeaderName }}">{{ .LeaderName }}</a></td>
               </tr>
               <tr>
                 <td class="col-sm-2 field-label"><label>Peers:</label></td>
                 <td class="col-sm-10"><ul class="list-unstyled">
-                {{ range $k, $p := .Peers }}
-                  <li><a href="{{ $p.ConnectionString }}">{{ $p.Name }}</a></li>
+                {{ range $p := .Peers }}
+                  <li><a href="http://{{ $p }}">{{ $p }}</a></li>
                 {{ end }}
                 </ul></td>
               </tr>

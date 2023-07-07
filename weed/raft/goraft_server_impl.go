@@ -133,6 +133,20 @@ func (s *GoRaftServer) Leader() (string, error) {
 	return l, nil
 }
 
+func (s *GoRaftServer) LeaderName() string {
+	if s.raftServer == nil {
+		return ""
+	}
+
+	l := s.raftServer.Leader()
+	if l == "" {
+		// We are a single node cluster, we are the leader
+		return s.raftServer.Name()
+	}
+
+	return l
+}
+
 func (s *GoRaftServer) Peers() (members []string) {
 	peers := s.raftServer.Peers()
 
