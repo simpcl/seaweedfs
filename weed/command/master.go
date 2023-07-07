@@ -114,8 +114,8 @@ func runMaster(cmd *Command, args []string) bool {
 	// start grpc and http server
 	m := cmux.New(listener)
 
-	grpcL := m.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
-	httpL := m.Match(cmux.Any())
+	grpcL := m.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
+	httpL := m.Match(cmux.HTTP1Fast())
 
 	// Create your protocol servers.
 	grpcS := grpc.NewServer()

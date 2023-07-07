@@ -5,15 +5,15 @@ go 1.17
 require (
 	github.com/boltdb/bolt v1.3.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/golang/protobuf v1.5.2
+	github.com/golang/protobuf v1.5.3
 	github.com/google/btree v1.1.2
 	github.com/gorilla/mux v1.8.0
 	github.com/klauspost/crc32 v1.2.0
-	github.com/seaweedfs/raft v1.1.2
+	github.com/seaweedfs/raft v1.1.3
 	github.com/soheilhy/cmux v0.1.5
 	github.com/syndtr/goleveldb v1.0.0
 	golang.org/x/net v0.0.0-20210907225631-ff17edfbf26d
-	google.golang.org/grpc v1.40.0
+	google.golang.org/grpc v1.40.1
 )
 
 require (
@@ -21,7 +21,7 @@ require (
 	github.com/stretchr/testify v1.8.2 // indirect
 	golang.org/x/sys v0.0.0-20220503163025-988cb79eb6c6 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/genproto v0.0.0-20210903162649-d08c68adba83 // indirect
-	google.golang.org/protobuf v1.27.1 // indirect
+	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
+	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/yaml.v2 v2.2.5 // indirect
 )
