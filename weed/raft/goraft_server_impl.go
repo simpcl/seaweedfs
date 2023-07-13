@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"time"
 
@@ -64,7 +65,14 @@ func NewGoRaftServer(r *mux.Router, option *RaftServerOption, command Command) *
 	heartbeatInterval := time.Duration(float64(400*time.Millisecond) * (rand.Float64()*0.25 + 1))
 	s.raftServer.SetHeartbeatInterval(heartbeatInterval)
 	s.raftServer.SetElectionTimeout(option.ElectionTimeout)
-	s.raftServer.Start()
+	if err = s.raftServer.LoadSnapshot(); err != nil {
+		glog.V(0).Infoln(err)
+		return nil
+	}
+	if err = s.raftServer.Start(); err != nil {
+		glog.V(0).Infoln(err)
+		return nil
+	}
 
 	for name, peer := range s.peers {
 		if err = s.raftServer.AddPeer(name, "http://"+peer.ToHttpAddress()); err != nil {
@@ -72,10 +80,22 @@ func NewGoRaftServer(r *mux.Router, option *RaftServerOption, command Command) *
 		}
 	}
 
+	// Remove deleted peers
+	for existsPeerName := range s.raftServer.Peers() {
+		if existingPeer, found := s.peers[existsPeerName]; !found {
+			glog.V(0).Infof("removing old peer: %s", existingPeer)
+			if err := s.raftServer.RemovePeer(existsPeerName); err != nil {
+				glog.V(0).Infoln(err)
+				return nil
+			}
+		}
+	}
+
 	time.Sleep(2 * time.Second)
-	if s.raftServer.IsLogEmpty() {
+	if s.raftServer.Leader() == "" && s.raftServer.IsLogEmpty() && s.isFirstPeer() {
+		// TODO: It is also not safe when the first peer can not communicate with other peers for a long time after the restart
 		// Initialize the server by joining itself.
-		glog.V(0).Infoln("Initializing new cluster")
+		glog.V(0).Infof("Initializing new cluster, DefaultJoinCommand %s", s.raftServer.Name())
 
 		_, err := s.raftServer.Do(&raft.DefaultJoinCommand{
 			Name:             s.raftServer.Name(),
@@ -88,17 +108,23 @@ func NewGoRaftServer(r *mux.Router, option *RaftServerOption, command Command) *
 		}
 	}
 
-	glog.V(0).Infof("current cluster leader: %v", s.raftServer.Leader())
-
-	if s.IsLeader() {
-		glog.V(0).Infoln("[", s.raftServer.Name(), "]", "I am the leader!")
-	} else {
-		if s.raftServer.Leader() != "" {
-			glog.V(0).Infoln("[", s.raftServer.Name(), "]", s.raftServer.Leader(), "is the leader.")
-		}
-	}
+	glog.V(0).Infof("current cluster leader: [%s], self: [%s], peers: %v", s.raftServer.Leader(), s.raftServer.Name(), s.Peers())
 
 	return s
+}
+
+func (s *GoRaftServer) isFirstPeer() bool {
+	if len(s.peers) <= 0 {
+		return false
+	}
+	var peers []util.ServerAddress
+	for _, sa := range s.peers {
+		peers = append(peers, sa)
+	}
+	sort.Slice(peers, func(i int, j int) bool {
+		return strings.Compare(string(peers[i]), string(peers[i])) > 0
+	})
+	return s.serverAddr == peers[0]
 }
 
 func (s *GoRaftServer) LeaderChangeTrigger(f func(newLeader string)) {
