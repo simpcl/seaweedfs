@@ -96,7 +96,7 @@ func (ms *MasterServer) InitRaftServer(r *mux.Router, option *raft.RaftServerOpt
 	option.Context = ms.Topo
 	ms.raftServer = raft.NewGoRaftServer(r, option, &MaxVolumeIdCommand{})
 	if ms.raftServer == nil {
-		glog.Fatalf("Master startup error: can not create the raft server")
+		panic("InitRaftServer error: can not create the raft server")
 	}
 
 	ms.raftServer.LeaderChangeTrigger(func(newLeader string) {
@@ -150,7 +150,7 @@ func (ms *MasterServer) StartRefreshWritableVolumes() {
 	go func(garbageThreshold string) {
 		c := time.Tick(15 * time.Minute)
 		for _ = range c {
-			if ms.raftServer.IsLeader() {
+			if ms.raftServer != nil && ms.raftServer.IsLeader() {
 				ms.Topo.Vacuum(garbageThreshold, ms.preallocate)
 			}
 		}
