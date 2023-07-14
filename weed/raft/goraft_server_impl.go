@@ -122,8 +122,9 @@ func (s *GoRaftServer) isFirstPeer() bool {
 		peers = append(peers, sa)
 	}
 	sort.Slice(peers, func(i int, j int) bool {
-		return strings.Compare(string(peers[i]), string(peers[i])) > 0
+		return strings.Compare(string(peers[i]), string(peers[j])) < 0
 	})
+	glog.V(1).Infof("sorted peers: %v", peers)
 	return s.serverAddr == peers[0]
 }
 
