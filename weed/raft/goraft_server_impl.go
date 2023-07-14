@@ -91,8 +91,22 @@ func NewGoRaftServer(r *mux.Router, option *RaftServerOption, command Command) *
 		}
 	}
 
-	time.Sleep(2 * time.Second)
-	if s.raftServer.Leader() == "" && s.raftServer.IsLogEmpty() && s.isFirstPeer() {
+	return s
+}
+
+func (s *GoRaftServer) CheckLeader() (string, error) {
+	if s.raftServer == nil {
+		return "", errors.New("Raft Server not ready yet!")
+	}
+
+	glog.V(0).Infof("current cluster leader: [%s], self: [%s], peers: %v", s.raftServer.Leader(), s.raftServer.Name(), s.Peers())
+
+	leader := s.raftServer.Leader()
+	if leader != "" {
+		return leader, nil
+	}
+
+	if s.raftServer.IsLogEmpty() && s.isFirstPeer() {
 		// TODO: It is also not safe when the first peer can not communicate with other peers for a long time after the restart
 		// Initialize the server by joining itself.
 		glog.V(0).Infof("Initializing new cluster, DefaultJoinCommand %s", s.raftServer.Name())
@@ -101,16 +115,13 @@ func NewGoRaftServer(r *mux.Router, option *RaftServerOption, command Command) *
 			Name:             s.raftServer.Name(),
 			ConnectionString: "http://" + s.serverAddr.ToHttpAddress(),
 		})
-
 		if err != nil {
 			glog.V(0).Infoln(err)
-			return nil
+			return "", err
 		}
 	}
 
-	glog.V(0).Infof("current cluster leader: [%s], self: [%s], peers: %v", s.raftServer.Leader(), s.raftServer.Name(), s.Peers())
-
-	return s
+	return s.raftServer.Leader(), nil
 }
 
 func (s *GoRaftServer) isFirstPeer() bool {
@@ -128,6 +139,10 @@ func (s *GoRaftServer) isFirstPeer() bool {
 	return s.serverAddr == peers[0]
 }
 
+func (s *GoRaftServer) isSingleNodeCluster() bool {
+	return len(s.peers) == 1
+}
+
 func (s *GoRaftServer) LeaderChangeTrigger(f func(newLeader string)) {
 	s.raftServer.AddEventListener(raft.LeaderChangeEventType, func(e raft.Event) {
 		glog.V(0).Infof("event: %+v", e)
@@ -138,40 +153,25 @@ func (s *GoRaftServer) LeaderChangeTrigger(f func(newLeader string)) {
 }
 
 func (s *GoRaftServer) IsLeader() bool {
-	if leader, e := s.Leader(); e == nil {
-		return leader == s.raftServer.Name()
-	}
-	return false
+	return s.Leader() == s.raftServer.Name()
 }
 
-func (s *GoRaftServer) Leader() (string, error) {
-	l := ""
-	if s.raftServer != nil {
-		l = s.raftServer.Leader()
-	} else {
-		return "", errors.New("Raft Server not ready yet!")
-	}
-
-	if l == "" {
-		// We are a single node cluster, we are the leader
-		return s.raftServer.Name(), errors.New("Raft Server not initialized!")
-	}
-
-	return l, nil
-}
-
-func (s *GoRaftServer) LeaderName() string {
+func (s *GoRaftServer) Leader() string {
 	if s.raftServer == nil {
 		return ""
 	}
 
-	l := s.raftServer.Leader()
-	if l == "" {
+	leader := s.raftServer.Leader()
+	if leader != "" {
+		return leader
+	}
+
+	if s.isSingleNodeCluster() {
 		// We are a single node cluster, we are the leader
 		return s.raftServer.Name()
 	}
 
-	return l
+	return ""
 }
 
 func (s *GoRaftServer) Peers() (members []string) {

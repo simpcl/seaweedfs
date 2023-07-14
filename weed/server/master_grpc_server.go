@@ -75,8 +75,8 @@ func (ms *MasterServer) SendHeartbeat(stream master_pb.Seaweed_SendHeartbeatServ
 		}
 
 		// tell the volume servers about the leader
-		newLeader, err := ms.raftServer.Leader()
-		if err == nil {
+		newLeader := ms.raftServer.Leader()
+		if newLeader != "" {
 			if err := stream.Send(&master_pb.HeartbeatResponse{
 				Leader: newLeader,
 			}); err != nil {

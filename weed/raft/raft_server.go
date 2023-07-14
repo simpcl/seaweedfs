@@ -6,7 +6,8 @@ import (
 )
 
 type RaftServer interface {
-	Leader() (string, error)
+	CheckLeader() (string, error)
+	Leader() string
 	IsLeader() bool
 	LeaderChangeTrigger(func(newLeader string))
 	Apply(command Command) *util.Future

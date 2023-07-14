@@ -113,9 +113,9 @@ func (ms *MasterServer) submitFromMasterServerHandler(w http.ResponseWriter, r *
 	if ms.raftServer.IsLeader() {
 		submitForClientHandler(w, r, ms.selfUrl(r))
 	} else {
-		masterUrl, err := ms.raftServer.Leader()
-		if err != nil {
-			writeJsonError(w, r, http.StatusInternalServerError, err)
+		masterUrl := ms.raftServer.Leader()
+		if masterUrl == "" {
+			writeJsonError(w, r, http.StatusInternalServerError, errors.New("no leader found"))
 		} else {
 			submitForClientHandler(w, r, masterUrl)
 		}
@@ -125,10 +125,10 @@ func (ms *MasterServer) submitFromMasterServerHandler(w http.ResponseWriter, r *
 func (ms *MasterServer) deleteFromMasterServerHandler(w http.ResponseWriter, r *http.Request) {
 	if ms.raftServer.IsLeader() {
 		deleteForClientHandler(w, r, ms.selfUrl(r))
-	} else if masterUrl, err := ms.raftServer.Leader(); err == nil {
+	} else if masterUrl := ms.raftServer.Leader(); masterUrl != "" {
 		deleteForClientHandler(w, r, masterUrl)
 	} else {
-		writeJsonError(w, r, http.StatusInternalServerError, err)
+		writeJsonError(w, r, http.StatusInternalServerError, errors.New("no leader found"))
 	}
 }
 
@@ -174,7 +174,7 @@ func (ms *MasterServer) statusHandler(w http.ResponseWriter, r *http.Request) {
 		IsLeader: ms.raftServer.IsLeader(),
 		Peers:    ms.raftServer.Peers(),
 	}
-	if leader, e := ms.raftServer.Leader(); e == nil {
+	if leader := ms.raftServer.Leader(); leader != "" {
 		ret.Leader = leader
 	}
 	writeJsonQuiet(w, r, http.StatusOK, ret)

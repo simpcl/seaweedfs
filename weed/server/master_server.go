@@ -92,7 +92,7 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 	return ms
 }
 
-func (ms *MasterServer) InitRaftServer(r *mux.Router, option *raft.RaftServerOption) {
+func (ms *MasterServer) InitRaftServer(r *mux.Router, option *raft.RaftServerOption) raft.RaftServer {
 	option.Context = ms.Topo
 	ms.raftServer = raft.NewGoRaftServer(r, option, &MaxVolumeIdCommand{})
 	if ms.raftServer == nil {
@@ -100,17 +100,18 @@ func (ms *MasterServer) InitRaftServer(r *mux.Router, option *raft.RaftServerOpt
 	}
 
 	ms.raftServer.LeaderChangeTrigger(func(newLeader string) {
-		if currentLeader, _ := ms.raftServer.Leader(); currentLeader != "" {
+		if currentLeader := ms.raftServer.Leader(); currentLeader != "" {
 			glog.V(0).Infof("%+v is the new leader", newLeader)
 		}
 	})
+	return ms.raftServer
 }
 
 func (ms *MasterServer) proxyToLeader(f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if ms.raftServer.IsLeader() {
 			f(w, r)
-		} else if leader, e := ms.raftServer.Leader(); e == nil {
+		} else if leader := ms.raftServer.Leader(); leader != "" {
 			ms.bounedLeaderChan <- 1
 			defer func() { <-ms.bounedLeaderChan }()
 			targetUrl, err := url.Parse("http://" + leader)
