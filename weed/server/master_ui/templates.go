@@ -33,7 +33,7 @@ var StatusTpl = template.Must(template.New("status").Parse(`<!DOCTYPE html>
               {{ with .RaftServer }}
               <tr>
                 <th>Leader</th>
-                <td><a href="http://{{ .LeaderName }}">{{ .LeaderName }}</a></td>
+                <td><a href="http://{{ .Leader }}">{{ .Leader }}</a></td>
               </tr>
               <tr>
                 <td class="col-sm-2 field-label"><label>Peers:</label></td>

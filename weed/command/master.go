@@ -91,24 +91,26 @@ func runMaster(cmd *Command, args []string) bool {
 		glog.Fatalf("Master startup error: %v", e)
 	}
 
+	// Initializing raft server
+	myMasterAddress, peers := checkPeers(*masterIp, *mport, *masterPeers)
+	mPeers := make(map[string]util.ServerAddress)
+	for _, peer := range peers {
+		mPeers[string(peer)] = peer
+	}
+
+	raftServerOption := &raft.RaftServerOption{
+		Peers:             mPeers,
+		ServerAddr:        myMasterAddress,
+		DataDir:           *metaFolder,
+		ResumeState:       *raftResumeState,
+		HeartbeatInterval: *heartbeatInterval,
+		ElectionTimeout:   *electionTimeout,
+	}
+	raftServer := ms.InitRaftServer(r, raftServerOption)
+
 	go func() {
-		time.Sleep(100 * time.Millisecond)
-
-		myMasterAddress, peers := checkPeers(*masterIp, *mport, *masterPeers)
-		mPeers := make(map[string]util.ServerAddress)
-		for _, peer := range peers {
-			mPeers[string(peer)] = peer
-		}
-
-		raftServerOption := &raft.RaftServerOption{
-			Peers:             mPeers,
-			ServerAddr:        myMasterAddress,
-			DataDir:           *metaFolder,
-			ResumeState:       *raftResumeState,
-			HeartbeatInterval: *heartbeatInterval,
-			ElectionTimeout:   *electionTimeout,
-		}
-		ms.InitRaftServer(r, raftServerOption)
+		time.Sleep(2000 * time.Millisecond)
+		raftServer.CheckLeader()
 	}()
 
 	// start grpc and http server

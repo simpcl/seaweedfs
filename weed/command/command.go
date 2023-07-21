@@ -12,7 +12,6 @@ var Commands = []*Command{
 	cmdBackup,
 	cmdCompact,
 	cmdFix,
-	cmdServer,
 	cmdMaster,
 	cmdUpload,
 	cmdDownload,

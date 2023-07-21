@@ -92,25 +92,26 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 	return ms
 }
 
-func (ms *MasterServer) InitRaftServer(r *mux.Router, option *raft.RaftServerOption) {
+func (ms *MasterServer) InitRaftServer(r *mux.Router, option *raft.RaftServerOption) raft.RaftServer {
 	option.Context = ms.Topo
 	ms.raftServer = raft.NewGoRaftServer(r, option, &MaxVolumeIdCommand{})
 	if ms.raftServer == nil {
-		glog.Fatalf("Master startup error: can not create the raft server")
+		panic("InitRaftServer error: can not create the raft server")
 	}
 
 	ms.raftServer.LeaderChangeTrigger(func(newLeader string) {
-		if currentLeader, _ := ms.raftServer.Leader(); currentLeader != "" {
+		if currentLeader := ms.raftServer.Leader(); currentLeader != "" {
 			glog.V(0).Infof("%+v is the new leader", newLeader)
 		}
 	})
+	return ms.raftServer
 }
 
 func (ms *MasterServer) proxyToLeader(f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if ms.raftServer.IsLeader() {
 			f(w, r)
-		} else if leader, e := ms.raftServer.Leader(); e == nil {
+		} else if leader := ms.raftServer.Leader(); leader != "" {
 			ms.bounedLeaderChan <- 1
 			defer func() { <-ms.bounedLeaderChan }()
 			targetUrl, err := url.Parse("http://" + leader)
@@ -150,7 +151,7 @@ func (ms *MasterServer) StartRefreshWritableVolumes() {
 	go func(garbageThreshold string) {
 		c := time.Tick(15 * time.Minute)
 		for _ = range c {
-			if ms.raftServer.IsLeader() {
+			if ms.raftServer != nil && ms.raftServer.IsLeader() {
 				ms.Topo.Vacuum(garbageThreshold, ms.preallocate)
 			}
 		}
