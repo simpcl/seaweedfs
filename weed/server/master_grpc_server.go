@@ -1,9 +1,9 @@
 package weed_server
 
 import (
+	"errors"
 	"net"
 	"strings"
-	"time"
 
 	"weed/glog"
 	"weed/pb/master_pb"
@@ -16,46 +16,63 @@ import (
 func (ms *MasterServer) SendHeartbeat(stream master_pb.Seaweed_SendHeartbeatServer) error {
 	var dn *topology.DataNode
 	t := ms.Topo
+
+	defer func() {
+		if dn != nil {
+			glog.V(0).Infof("SendHeartbeat before exit, unregister volume server %s:%d", dn.Ip, dn.Port)
+			t.UnRegisterDataNode(dn)
+			dn = nil
+		}
+	}()
+
 	for {
 		heartbeat, err := stream.Recv()
 		if err != nil {
 			glog.V(0).Infof("SendHeartbeat stream recv error: %s", err.Error())
-			if dn != nil {
-				glog.V(0).Infof("unregister volume server %s:%d", dn.Ip, dn.Port)
-				t.UnRegisterDataNode(dn)
-			}
 			return err
 		}
-		glog.V(1).Infof("SendHeartbeat stream recv from %v:%d", heartbeat.GetIp(), heartbeat.GetPort())
-
-		if ms.raftServer == nil {
-			time.Sleep(1 * time.Second)
-			continue
+		if dn == nil {
+			glog.V(0).Infof("SendHeartbeat stream recv from %v:%d when dn is nil", heartbeat.GetIp(), heartbeat.GetPort())
+		} else {
+			glog.V(2).Infof("SendHeartbeat stream recv from %v:%d, dn: %s:%d",
+				heartbeat.GetIp(), heartbeat.GetPort(), dn.Ip, dn.Port)
 		}
 
-		if dn == nil {
-			t.Sequence.SetMax(heartbeat.MaxFileKey)
-			if heartbeat.Ip == "" {
-				if pr, ok := peer.FromContext(stream.Context()); ok {
-					if pr.Addr != net.Addr(nil) {
-						heartbeat.Ip = pr.Addr.String()[0:strings.LastIndex(pr.Addr.String(), ":")]
-						glog.V(0).Infof("remote IP address is detected as %v", heartbeat.Ip)
-					}
+		if ms.raftServer == nil {
+			err = errors.New("raftServer is nil")
+			glog.V(0).Infof("SendHeartbeat error: %s", err.Error())
+			return err
+		}
+		if !ms.raftServer.IsLeader() {
+			glog.V(0).Infof("SendHeartbeat i am not leader, leader: %s", ms.raftServer.Leader())
+			return stream.Send(&master_pb.HeartbeatResponse{
+				Leader: ms.raftServer.Leader(),
+			})
+		}
+
+		t.Sequence.SetMax(heartbeat.MaxFileKey)
+		if heartbeat.Ip == "" {
+			if pr, ok := peer.FromContext(stream.Context()); ok {
+				if pr.Addr != net.Addr(nil) {
+					heartbeat.Ip = pr.Addr.String()[0:strings.LastIndex(pr.Addr.String(), ":")]
+					glog.V(0).Infof("remote IP address is detected as %v", heartbeat.Ip)
 				}
 			}
-			dcName, rackName := t.Configuration.Locate(heartbeat.Ip, heartbeat.DataCenter, heartbeat.Rack)
-			dc := t.GetOrCreateDataCenter(dcName)
-			rack := dc.GetOrCreateRack(rackName)
-			dn = rack.GetOrCreateDataNode(heartbeat.Ip,
-				int(heartbeat.Port), heartbeat.PublicUrl,
-				int(heartbeat.MaxVolumeCount))
-			glog.V(0).Infof("added volume server %v:%d", heartbeat.GetIp(), heartbeat.GetPort())
-			if err := stream.Send(&master_pb.HeartbeatResponse{
-				VolumeSizeLimit: uint64(ms.volumeSizeLimitMB) * 1024 * 1024,
-				SecretKey:       string(ms.guard.SecretKey),
-			}); err != nil {
-				return err
-			}
+		}
+		dcName, rackName := t.Configuration.Locate(heartbeat.Ip, heartbeat.DataCenter, heartbeat.Rack)
+		dc := t.GetOrCreateDataCenter(dcName)
+		rack := dc.GetOrCreateRack(rackName)
+		dn = rack.GetOrCreateDataNode(heartbeat.Ip,
+			int(heartbeat.Port), heartbeat.PublicUrl,
+			int(heartbeat.MaxVolumeCount))
+		glog.V(2).Infof("added volume server %v:%d", heartbeat.GetIp(), heartbeat.GetPort())
+		if err := stream.Send(&master_pb.HeartbeatResponse{
+			VolumeSizeLimit: uint64(ms.volumeSizeLimitMB) * 1024 * 1024,
+			SecretKey:       string(ms.guard.SecretKey),
+			Leader:          ms.raftServer.Leader(),
+		}); err != nil {
+			glog.V(0).Infof("SendHeartbeat stream send response to %s:%d error: %s", heartbeat.GetIp(), heartbeat.GetPort(), err.Error())
+			return err
 		}
 
 		var volumeInfos []storage.VolumeInfo
@@ -72,21 +89,6 @@ func (ms *MasterServer) SendHeartbeat(stream master_pb.Seaweed_SendHeartbeatServ
 		}
 		for _, v := range deletedVolumes {
 			t.UnRegisterVolumeLayout(v, dn)
-		}
-
-		// tell the volume servers about the leader
-		newLeader := ms.raftServer.Leader()
-		if newLeader != "" {
-			if err := stream.Send(&master_pb.HeartbeatResponse{
-				Leader: newLeader,
-			}); err != nil {
-				glog.V(0).Infof("SendHeartbeat stream send response to %s:%d error: %s", dn.Ip, dn.Port, err.Error())
-				if dn != nil {
-					glog.V(0).Infof("unregister volume server %s:%d", dn.Ip, dn.Port)
-					t.UnRegisterDataNode(dn)
-				}
-				return err
-			}
 		}
 	}
 }
