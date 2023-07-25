@@ -1,6 +1,9 @@
-FROM cydev/go
-RUN go get github.com/chrislusf/seaweedfs/weed
-EXPOSE 8080
-EXPOSE 9333
-VOLUME /data
+FROM ubuntu:20.04
+
+RUN apt update && apt install curl net-tools jq -y
+
+COPY ./weed/weed /usr/bin/weed
+
+USER root
+
 ENTRYPOINT ["weed"]
