@@ -1,6 +1,6 @@
 FROM ubuntu:20.04
 
-RUN apt update && apt install curl net-tools jq -y
+RUN apt update && apt install curl net-tools jq socat -y
 
 COPY ./weed/weed /usr/bin/weed
 
