@@ -26,5 +26,4 @@ type RaftServerOption struct {
 	ResumeState       bool // for GoRaftServer
 	HeartbeatInterval time.Duration
 	ElectionTimeout   time.Duration
-	Context           interface{}
 }

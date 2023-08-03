@@ -29,8 +29,9 @@ type MasterServer struct {
 	pulseSeconds            int
 	defaultReplicaPlacement string
 	garbageThreshold        string
-	guard                   *security.Guard
+	router                  *mux.Router
 
+	guard  *security.Guard
 	Topo   *topology.Topology
 	vgLock sync.Mutex
 
@@ -61,6 +62,7 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 		pulseSeconds:            pulseSeconds,
 		defaultReplicaPlacement: defaultReplicaPlacement,
 		garbageThreshold:        garbageThreshold,
+		router:                  r,
 	}
 	ms.bounedLeaderChan = make(chan int, 16)
 	seq := sequence.NewMemorySequencer()
@@ -92,9 +94,8 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 	return ms
 }
 
-func (ms *MasterServer) InitRaftServer(r *mux.Router, option *raft.RaftServerOption) raft.RaftServer {
-	option.Context = ms.Topo
-	ms.raftServer = raft.NewGoRaftServer(r, option, &MaxVolumeIdCommand{})
+func (ms *MasterServer) InitRaftServer(option *raft.RaftServerOption) raft.RaftServer {
+	ms.raftServer = raft.NewGoRaftServer(ms.router, &StateMachine{topo: ms.Topo}, option, &MaxVolumeIdCommand{})
 	if ms.raftServer == nil {
 		panic("InitRaftServer error: can not create the raft server")
 	}

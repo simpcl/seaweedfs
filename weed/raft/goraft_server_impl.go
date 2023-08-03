@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"errors"
 	"math/rand"
 	"net/http"
 	"os"
@@ -14,18 +13,18 @@ import (
 	"weed/util"
 
 	"github.com/gorilla/mux"
-	"github.com/seaweedfs/raft"
+	goRaft "github.com/seaweedfs/raft"
 )
 
 type GoRaftServer struct {
-	peers      map[string]util.ServerAddress // initial peers to join with
-	raftServer raft.Server
-	dataDir    string
 	serverAddr util.ServerAddress
+	peers      map[string]util.ServerAddress // initial peers to join with
+	dataDir    string
+	raftServer goRaft.Server
 	router     *mux.Router
 }
 
-func NewGoRaftServer(r *mux.Router, option *RaftServerOption, command Command) *GoRaftServer {
+func NewGoRaftServer(r *mux.Router, sm goRaft.StateMachine, option *RaftServerOption, command Command) *GoRaftServer {
 	s := &GoRaftServer{
 		peers:      option.Peers,
 		serverAddr: option.ServerAddr,
@@ -34,13 +33,13 @@ func NewGoRaftServer(r *mux.Router, option *RaftServerOption, command Command) *
 	}
 
 	if glog.V(4) {
-		raft.SetLogLevel(2)
+		goRaft.SetLogLevel(2)
 	}
 
-	raft.RegisterCommand(command)
+	goRaft.RegisterCommand(command)
 
 	var err error
-	transporter := raft.NewHTTPTransporter("/cluster", 0)
+	transporter := goRaft.NewHTTPTransporter("/cluster", 0)
 	transporter.Transport.MaxIdleConnsPerHost = 1024
 	glog.V(0).Infof("Starting GoRaftServer with %v", option.ServerAddr)
 
@@ -51,12 +50,12 @@ func NewGoRaftServer(r *mux.Router, option *RaftServerOption, command Command) *
 		os.RemoveAll(path.Join(s.dataDir, "conf"))
 		os.RemoveAll(path.Join(s.dataDir, "snapshot"))
 	}
-	if err = os.MkdirAll(path.Join(s.dataDir, "snapshot"), os.ModePerm); err != nil {
+	if err = os.MkdirAll(path.Join(s.dataDir, "snapshot"), os.ModePerm); err != nil && !os.IsExist(err) {
 		glog.V(0).Infoln(err)
 		return nil
 	}
 
-	s.raftServer, err = raft.NewServer(string(s.serverAddr), s.dataDir, transporter, nil, option.Context, "")
+	s.raftServer, err = goRaft.NewServer(string(s.serverAddr), s.dataDir, transporter, sm, nil, "")
 	if err != nil {
 		glog.V(0).Infoln(err)
 		return nil
@@ -95,10 +94,6 @@ func NewGoRaftServer(r *mux.Router, option *RaftServerOption, command Command) *
 }
 
 func (s *GoRaftServer) CheckLeader() (string, error) {
-	if s.raftServer == nil {
-		return "", errors.New("Raft Server not ready yet!")
-	}
-
 	glog.V(0).Infof("current cluster leader: [%s], self: [%s], peers: %v", s.raftServer.Leader(), s.raftServer.Name(), s.Peers())
 
 	leader := s.raftServer.Leader()
@@ -111,7 +106,7 @@ func (s *GoRaftServer) CheckLeader() (string, error) {
 		// Initialize the server by joining itself.
 		glog.V(0).Infof("Initializing new cluster, DefaultJoinCommand %s", s.raftServer.Name())
 
-		_, err := s.raftServer.Do(&raft.DefaultJoinCommand{
+		_, err := s.raftServer.Do(&goRaft.DefaultJoinCommand{
 			Name:             s.raftServer.Name(),
 			ConnectionString: "http://" + s.serverAddr.ToHttpAddress(),
 		})
@@ -144,7 +139,7 @@ func (s *GoRaftServer) isSingleNodeCluster() bool {
 }
 
 func (s *GoRaftServer) LeaderChangeTrigger(f func(newLeader string)) {
-	s.raftServer.AddEventListener(raft.LeaderChangeEventType, func(e raft.Event) {
+	s.raftServer.AddEventListener(goRaft.LeaderChangeEventType, func(e goRaft.Event) {
 		glog.V(0).Infof("event: %+v", e)
 		if s.raftServer.Leader() != "" {
 			f(e.Value().(string))
@@ -157,10 +152,6 @@ func (s *GoRaftServer) IsLeader() bool {
 }
 
 func (s *GoRaftServer) Leader() string {
-	if s.raftServer == nil {
-		return ""
-	}
-
 	leader := s.raftServer.Leader()
 	if leader != "" {
 		return leader

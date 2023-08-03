@@ -99,14 +99,14 @@ func runMaster(cmd *Command, args []string) bool {
 	}
 
 	raftServerOption := &raft.RaftServerOption{
-		Peers:             mPeers,
 		ServerAddr:        myMasterAddress,
+		Peers:             mPeers,
 		DataDir:           *metaFolder,
 		ResumeState:       *raftResumeState,
 		HeartbeatInterval: *heartbeatInterval,
 		ElectionTimeout:   *electionTimeout,
 	}
-	raftServer := ms.InitRaftServer(r, raftServerOption)
+	raftServer := ms.InitRaftServer(raftServerOption)
 
 	go func() {
 		time.Sleep(2000 * time.Millisecond)
