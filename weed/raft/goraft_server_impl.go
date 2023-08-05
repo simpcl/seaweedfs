@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"sort"
 	"strings"
 	"time"
 
@@ -120,18 +119,7 @@ func (s *GoRaftServer) CheckLeader() (string, error) {
 }
 
 func (s *GoRaftServer) isFirstPeer() bool {
-	if len(s.peers) <= 0 {
-		return false
-	}
-	var peers []util.ServerAddress
-	for _, sa := range s.peers {
-		peers = append(peers, sa)
-	}
-	sort.Slice(peers, func(i int, j int) bool {
-		return strings.Compare(string(peers[i]), string(peers[j])) < 0
-	})
-	glog.V(1).Infof("sorted peers: %v", peers)
-	return s.serverAddr == peers[0]
+	return 0 == GetPeerIndex(s.serverAddr, s.peers)
 }
 
 func (s *GoRaftServer) isSingleNodeCluster() bool {
@@ -175,7 +163,7 @@ func (s *GoRaftServer) Peers() (members []string) {
 	return
 }
 
-func (s *GoRaftServer) Apply(command Command) *util.Future {
+func (s *GoRaftServer) Exec(command Command) *util.Future {
 	f := util.NewFuture()
 	go func() {
 		_, err := s.raftServer.Do(command)

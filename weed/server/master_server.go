@@ -95,7 +95,11 @@ func NewMasterServer(r *mux.Router, port int, metaFolder string,
 }
 
 func (ms *MasterServer) InitRaftServer(option *raft.RaftServerOption) raft.RaftServer {
-	ms.raftServer = raft.NewGoRaftServer(ms.router, &StateMachine{topo: ms.Topo}, option, &MaxVolumeIdCommand{})
+	if option.IsHashicorpRaft {
+		ms.raftServer = raft.NewHashicorpRaftServer(&StateMachine{topo: ms.Topo}, option)
+	} else {
+		ms.raftServer = raft.NewGoRaftServer(ms.router, &StateMachine{topo: ms.Topo}, option, &MaxVolumeIdCommand{})
+	}
 	if ms.raftServer == nil {
 		panic("InitRaftServer error: can not create the raft server")
 	}
@@ -207,7 +211,8 @@ func (ms *MasterServer) findAndGrow(option *topology.VolumeOption) (int, error) 
 func (ms *MasterServer) NextVolumeId() storage.VolumeId {
 	vid := ms.Topo.GetMaxVolumeId()
 	next := vid.Next()
-	ms.raftServer.Apply(NewMaxVolumeIdCommand(next))
+	glog.V(4).Infof("MasterServer NextVolumeId: %+v", next)
+	ms.raftServer.Exec(NewMaxVolumeIdCommand(next))
 	return next
 }
 
