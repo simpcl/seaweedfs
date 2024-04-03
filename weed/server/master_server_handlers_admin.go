@@ -54,6 +54,7 @@ func (ms *MasterServer) volumeGrowHandler(w http.ResponseWriter, r *http.Request
 		writeJsonError(w, r, http.StatusNotAcceptable, err)
 		return
 	}
+	glog.V(2).Infof("volumeGrowHandler => max volume id: %d", ms.Topo.GetMaxVolumeId())
 	if err == nil {
 		ms.vgLock.Lock()
 		defer ms.vgLock.Unlock()

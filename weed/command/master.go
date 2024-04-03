@@ -54,6 +54,7 @@ var (
 	raftResumeState   = cmdMaster.Flag.Bool("resumeState", false, "resume previous state on start master server")
 	heartbeatInterval = cmdMaster.Flag.Duration("heartbeatInterval", 300*time.Millisecond, "heartbeat interval of master servers, and will be randomly multiplied by [1, 1.25)")
 	electionTimeout   = cmdMaster.Flag.Duration("electionTimeout", 10*time.Second, "election timeout of master servers")
+	hashicorpRaft     = cmdMaster.Flag.Bool("hashicorpRaft", false, "use hashicorp raft")
 
 	masterWhiteList []string
 )
@@ -99,14 +100,15 @@ func runMaster(cmd *Command, args []string) bool {
 	}
 
 	raftServerOption := &raft.RaftServerOption{
-		Peers:             mPeers,
 		ServerAddr:        myMasterAddress,
+		Peers:             mPeers,
 		DataDir:           *metaFolder,
 		ResumeState:       *raftResumeState,
 		HeartbeatInterval: *heartbeatInterval,
 		ElectionTimeout:   *electionTimeout,
+		IsHashicorpRaft:   *hashicorpRaft,
 	}
-	raftServer := ms.InitRaftServer(r, raftServerOption)
+	raftServer := ms.InitRaftServer(raftServerOption)
 
 	go func() {
 		time.Sleep(2000 * time.Millisecond)
