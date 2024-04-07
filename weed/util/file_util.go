@@ -2,7 +2,10 @@ package util
 
 import (
 	"bufio"
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
+	"io"
 	"os"
 
 	"weed/glog"
@@ -43,4 +46,39 @@ func GetFileSize(file *os.File) (size int64, err error) {
 		size = fi.Size()
 	}
 	return
+}
+
+func CalculateFileMd5(filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	hashInBytes := hash.Sum(nil)
+	md5Hash := hex.EncodeToString(hashInBytes)
+	return md5Hash, nil
+}
+
+func RemoveFile(filePath string) error {
+	err := os.Remove(filePath)
+	if err != nil {
+		glog.V(0).Infof("remove file %s error: %v", filePath, err)
+		return err
+	}
+	return nil
+}
+
+func RenameFile(oldpath, newpath string) error {
+	err := os.Rename(oldpath, newpath)
+	if err != nil {
+		glog.V(0).Infof("rename file from %s to %s error: %v", oldpath, newpath, err)
+		return err
+	}
+	return nil
 }
