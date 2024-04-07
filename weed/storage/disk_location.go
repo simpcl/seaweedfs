@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"fmt"
 
 	"weed/glog"
+	"weed/util"
 )
 
 type DiskLocation struct {
@@ -26,7 +28,7 @@ func NewDiskLocation(dir string, maxVolumeCount int) *DiskLocation {
 
 func (l *DiskLocation) volumeIdFromPath(dir os.FileInfo) (VolumeId, string, error) {
 	name := dir.Name()
-	if !dir.IsDir() && strings.HasSuffix(name, ".dat") {
+	if !dir.IsDir() && (strings.HasSuffix(name, ".dat") || strings.HasSuffix(name, ".idx")) {
 		collection := ""
 		base := name[:len(name)-len(".dat")]
 		i := strings.LastIndex(base, "_")
@@ -203,4 +205,86 @@ func (l *DiskLocation) Close() {
 		v.Close()
 	}
 	return
+}
+
+func (l *DiskLocation) GetVolumeFilePath(filename string) (string, string, error) {
+	l.RLock()
+	defer l.RUnlock()
+
+	localFilePath := fmt.Sprintf("%s/%s", l.Directory, filename)
+	finfo, err := os.Stat(localFilePath)
+	if err != nil {
+		return localFilePath, "", err
+	}
+
+	vid, _, err := l.volumeIdFromPath(finfo)
+	if err != nil {
+		return localFilePath, "", err
+	}
+
+	_, ok := l.volumes[vid]
+	if ok { // can not allow for opening the mounted volume file
+		return localFilePath, "", errors.New("can not open the mounted volume file")
+	}
+
+	contentMd5, err := util.CalculateFileMd5(localFilePath)
+	if err != nil {
+		return localFilePath, "", fmt.Errorf("calculate md5 of file %s error: %v", localFilePath, err)
+	}
+
+	return localFilePath, contentMd5, nil
+}
+
+func (l *DiskLocation) CheckVolumeFileExist(collection string, vid VolumeId, suffix string) (bool, string, error) {
+	l.RLock()
+	defer l.RUnlock()
+
+	var filename string
+	if collection != "" {
+		filename = fmt.Sprintf("%s_%d.%s", collection, vid, suffix)
+	} else {
+		filename = fmt.Sprintf("%d.%s", vid, suffix)
+	}
+	localFilePath := fmt.Sprintf("%s/%s", l.Directory, filename)
+
+	_, ok := l.volumes[vid]
+	if ok { // volume exists
+		return true, localFilePath, nil
+	}
+
+	_, err := os.Stat(localFilePath)
+	if os.IsNotExist(err) {
+		return false, localFilePath, nil
+	} else if err != nil {
+		return false, localFilePath, err
+	}
+
+	return true, localFilePath, nil
+}
+
+func (l *DiskLocation) DeleteVolumeFile(filename string, force bool) error {
+	l.RLock()
+	defer l.RUnlock()
+
+	localFilePath := fmt.Sprintf("%s/%s", l.Directory, filename)
+	finfo, err := os.Stat(localFilePath)
+	if err != nil {
+		return err
+	}
+
+	vid, _, err := l.volumeIdFromPath(finfo)
+	if err != nil {
+		return err
+	}
+
+	_, ok := l.volumes[vid]
+	if ok { // can not allow for deleting the mounted volume file
+		return errors.New("can not delete the mounted volume file")
+	}
+
+	if !force {
+		return os.Rename(localFilePath, localFilePath+".del")
+	}
+
+	return util.RemoveFile(localFilePath)
 }

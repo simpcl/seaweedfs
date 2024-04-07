@@ -9,8 +9,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
+	"weed/glog"
 	"weed/security"
 )
 
@@ -175,6 +177,46 @@ func DownloadUrl(fileUrl string) (filename string, rc io.ReadCloser, e error) {
 
 func Do(req *http.Request) (resp *http.Response, err error) {
 	return client.Do(req)
+}
+
+func DownloadFilePartialContent(localFilePath string, targetUrl string) (string, error) {
+	fileInfo, err := os.Stat(localFilePath)
+	if err != nil {
+		return "", err
+	}
+	fileSize := fileInfo.Size()
+
+	file, err := os.OpenFile(localFilePath, os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	req, err := http.NewRequest("GET", targetUrl, nil)
+	if err != nil {
+		return "", err
+	}
+
+	if fileSize > 0 {
+		glog.V(0).Infof("Set http range header bytes=%d-", fileSize)
+		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", fileSize))
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+		return "", fmt.Errorf("response status code %d", resp.StatusCode)
+	}
+
+	contentMd5 := resp.Header.Get("Content-Md5")
+
+	buffer := make([]byte, 4*1024*1024)
+	_, err = io.CopyBuffer(file, resp.Body, buffer)
+	return contentMd5, err
 }
 
 func NormalizeUrl(url string) string {
